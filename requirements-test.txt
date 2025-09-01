@@ -1,0 +1,27 @@
+# Testing dependencies for CineChainLanka Phase 1
+# Install with: pip install -r requirements-test.txt
+
+# Core testing frameworks
+pytest>=7.0.0
+pytest-django>=4.5.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+
+# Django testing utilities
+factory-boy>=3.2.0
+faker>=19.0.0
+
+# API testing
+responses>=0.23.0
+
+# Coverage and reporting
+coverage>=7.0.0
+
+# Mocking and patching
+freezegun>=1.2.0
+httpretty>=1.1.0
+
+# Code quality
+flake8>=6.0.0
+black>=23.0.0
+isort>=5.12.0
