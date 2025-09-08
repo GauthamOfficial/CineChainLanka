@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchCampaignById, clearError } from '../store/slices/campaignSlice';
+import PaymentForm from '../components/payment/PaymentForm';
 import { 
   ArrowLeftIcon,
   HeartIcon,
@@ -24,6 +25,7 @@ const CampaignDetail: React.FC = () => {
   const [selectedReward, setSelectedReward] = useState<number | null>(null);
   const [contributionAmount, setContributionAmount] = useState('');
   const [showContributionModal, setShowContributionModal] = useState(false);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -107,11 +109,23 @@ const CampaignDetail: React.FC = () => {
   };
 
   const handleContributionSubmit = () => {
-    // TODO: Implement contribution logic
-    console.log('Contributing:', { amount: contributionAmount, reward: selectedReward });
     setShowContributionModal(false);
+    setShowPaymentForm(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPaymentForm(false);
     setContributionAmount('');
     setSelectedReward(null);
+    // Refresh campaign data to show updated funding
+    if (id) {
+      dispatch(fetchCampaignById(parseInt(id)));
+    }
+  };
+
+  const handlePaymentCancel = () => {
+    setShowPaymentForm(false);
+    setShowContributionModal(true);
   };
 
   return (
@@ -386,6 +400,35 @@ const CampaignDetail: React.FC = () => {
               >
                 Continue to Payment
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Form Modal */}
+      {showPaymentForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Complete Payment</h3>
+                <button
+                  onClick={handlePaymentCancel}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <PaymentForm
+                campaignId={currentCampaign.id}
+                amount={parseFloat(contributionAmount) || 0}
+                rewardId={selectedReward !== null ? currentCampaign.rewards?.[selectedReward]?.id : undefined}
+                onSuccess={handlePaymentSuccess}
+                onCancel={handlePaymentCancel}
+              />
             </div>
           </div>
         </div>

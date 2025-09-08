@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import api from '../../utils/api';
+import { setCredentials } from './authSlice';
 
 interface UserProfile {
   // User model fields
@@ -70,9 +71,30 @@ const initialState: UserState = {
 // Async thunks
 export const fetchUserProfile = createAsyncThunk(
   'user/fetchUserProfile',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, dispatch, getState }) => {
     try {
       const response = await api.get('/api/users/profile/');
+      
+      // Also update the auth user data if we have tokens
+      const state = getState() as any;
+      if (state.auth.token && state.auth.refreshToken) {
+        const userData = {
+          id: response.data.id,
+          username: response.data.username,
+          email: response.data.email,
+          first_name: response.data.first_name,
+          last_name: response.data.last_name,
+          user_type: response.data.user_type,
+          is_verified: response.data.kyc_status === 'verified'
+        };
+        
+        dispatch(setCredentials({
+          user: userData,
+          token: state.auth.token,
+          refreshToken: state.auth.refreshToken
+        }));
+      }
+      
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch user profile');

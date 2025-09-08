@@ -124,7 +124,10 @@ const paymentSlice = createSlice({
       })
       .addCase(fetchPaymentMethods.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.paymentMethods = action.payload;
+        // Handle both array and object with results property
+        state.paymentMethods = Array.isArray(action.payload) 
+          ? action.payload 
+          : action.payload.results || [];
       })
       .addCase(fetchPaymentMethods.rejected, (state, action) => {
         state.isLoading = false;

@@ -1,5 +1,8 @@
-# CineChainLanka - Project Development Phases
-#   .cinechain/Scripts/Activate.ps1
+# CineChainLanka - Project Development Phase
+# .cinechain\Scripts\Activate.ps1
+
+
+
 ## Project Overview
 **CineChainLanka** is a blockchain-powered decentralized platform designed to transform film and content funding in Sri Lanka by enabling creators to raise funds transparently using smart contracts, NFTs, and automated royalty distribution.
 
@@ -93,66 +96,66 @@
 **Focus: Smart contracts, wallet integration, and NFT functionality**
 
 ### 2.1 Smart Contract Development (Weeks 1-4)
-- [ ] **Funding Smart Contract**
+- [x] **Funding Smart Contract**
   - Campaign funding logic implementation
   - Escrow functionality for raised funds
   - Automatic refund mechanism for failed campaigns
   - Funding goal and deadline management
   - Multi-signature wallet integration
 
-- [ ] **NFT Smart Contract**
+- [x] **NFT Smart Contract**
   - NFT minting functionality
   - Metadata storage on IPFS
   - Ownership tracking and transfer
   - Fractional rights representation
   - Royalty percentage encoding
 
-- [ ] **Smart Contract Testing**
+- [x] **Smart Contract Testing**
   - Unit tests for all contract functions
   - Integration testing with testnet
   - Security audit preparation
   - Gas optimization
 
 ### 2.2 Wallet Integration (Weeks 5-7)
-- [ ] **Web3 Integration**
+- [x] **Web3 Integration**
   - MetaMask wallet connection
   - TrustWallet integration
   - Wallet address management
   - Transaction signing and confirmation
 
-- [ ] **Blockchain Transaction Handling**
+- [x] **Blockchain Transaction Handling**
   - Gas fee estimation and management
   - Transaction status tracking
   - Error handling and user feedback
   - Network switching (Ethereum/Polygon)
 
 ### 2.3 NFT System Implementation (Weeks 8-10)
-- [ ] **NFT Minting Process**
+- [x] **NFT Minting Process**
   - Automatic NFT creation upon contribution
   - NFT metadata generation and IPFS upload
   - NFT gallery and ownership display
   - NFT transfer functionality
 
-- [ ] **IPFS Integration**
+- [x] **IPFS Integration**
   - Media file upload to IPFS
   - Metadata storage and retrieval
   - Content addressing and verification
   - IPFS gateway integration
 
 ### 2.4 Enhanced Payment System (Weeks 11-12)
-- [ ] **Crypto Payment Processing**
+- [x] **Crypto Payment Processing**
   - USDT payment integration
   - LKR-pegged stablecoin support
   - Cross-chain payment handling
   - Payment verification on blockchain
 
 **Phase 2 Deliverables:**
-- Deployed smart contracts on testnet/mainnet
-- Complete wallet integration (MetaMask, TrustWallet)
-- NFT minting and management system
-- IPFS storage integration
-- Crypto payment processing
-- Smart contract audit report
+- [x] Deployed smart contracts on testnet/mainnet
+- [x] Complete wallet integration (MetaMask, TrustWallet)
+- [x] NFT minting and management system
+- [x] IPFS storage integration
+- [x] Crypto payment processing
+- [x] Smart contract audit report
 
 ---
 

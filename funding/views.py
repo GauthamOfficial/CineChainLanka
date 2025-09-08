@@ -8,6 +8,12 @@ from .models import (
     FundingRound, FundingMilestone, FundingAllocation,
     FundingProgress, FundingAnalytics
 )
+from .serializers import (
+    FundingRoundSerializer, FundingRoundUpdateSerializer,
+    FundingMilestoneSerializer, FundingAllocationSerializer,
+    FundingAllocationUpdateSerializer, FundingProgressSerializer,
+    FundingAnalyticsSerializer
+)
 
 
 # Placeholder views - will be implemented in detail later
@@ -41,10 +47,34 @@ class FundingRoundDetailView(generics.RetrieveUpdateDestroyAPIView):
 class FundingRoundUpdateView(generics.UpdateAPIView):
     """Update funding round"""
     queryset = FundingRound.objects.all()
+    serializer_class = FundingRoundUpdateSerializer
     permission_classes = [IsAuthenticated]
     
-    def put(self, request, pk):
-        return Response({'message': f'Funding round {pk} update will be implemented'})
+    def get_object(self):
+        """Get the funding round object and check permissions"""
+        funding_round = super().get_object()
+        # Check if the user is the campaign creator
+        if funding_round.campaign.creator != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only update funding rounds for your own campaigns.")
+        return funding_round
+    
+    def perform_update(self, serializer):
+        """Perform the update"""
+        serializer.save()
+    
+    def update(self, request, *args, **kwargs):
+        """Handle both PUT and PATCH requests"""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        return Response({
+            'message': 'Funding round updated successfully',
+            'data': FundingRoundSerializer(instance).data
+        }, status=status.HTTP_200_OK)
 
 
 class FundingRoundDeleteView(generics.DestroyAPIView):
@@ -52,8 +82,36 @@ class FundingRoundDeleteView(generics.DestroyAPIView):
     queryset = FundingRound.objects.all()
     permission_classes = [IsAuthenticated]
     
-    def delete(self, request, pk):
-        return Response({'message': f'Funding round {pk} deletion will be implemented'})
+    def get_object(self):
+        """Get the funding round object and check permissions"""
+        funding_round = super().get_object()
+        # Check if the user is the campaign creator
+        if funding_round.campaign.creator != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only delete funding rounds for your own campaigns.")
+        
+        # Check if funding round has any current funding (can't delete if money is involved)
+        if funding_round.current_funding > 0:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Cannot delete funding round that has received funding.")
+        
+        return funding_round
+    
+    def perform_destroy(self, instance):
+        """Perform the deletion"""
+        round_title = instance.title
+        campaign_title = instance.campaign.title
+        instance.delete()
+        return round_title, campaign_title
+    
+    def destroy(self, request, *args, **kwargs):
+        """Handle DELETE request"""
+        instance = self.get_object()
+        round_title, campaign_title = self.perform_destroy(instance)
+        
+        return Response({
+            'message': f'Funding round "{round_title}" for campaign "{campaign_title}" has been deleted successfully'
+        }, status=status.HTTP_200_OK)
 
 
 class FundingMilestoneListView(generics.ListCreateAPIView):
@@ -131,10 +189,34 @@ class FundingAllocationDetailView(generics.RetrieveUpdateDestroyAPIView):
 class FundingAllocationUpdateView(generics.UpdateAPIView):
     """Update funding allocation"""
     queryset = FundingAllocation.objects.all()
+    serializer_class = FundingAllocationUpdateSerializer
     permission_classes = [IsAuthenticated]
     
-    def put(self, request, pk):
-        return Response({'message': f'Funding allocation {pk} update will be implemented'})
+    def get_object(self):
+        """Get the funding allocation object and check permissions"""
+        allocation = super().get_object()
+        # Check if the user is the campaign creator
+        if allocation.campaign.creator != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only update funding allocations for your own campaigns.")
+        return allocation
+    
+    def perform_update(self, serializer):
+        """Perform the update"""
+        serializer.save()
+    
+    def update(self, request, *args, **kwargs):
+        """Handle both PUT and PATCH requests"""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        return Response({
+            'message': 'Funding allocation updated successfully',
+            'data': FundingAllocationSerializer(instance).data
+        }, status=status.HTTP_200_OK)
 
 
 class FundingAllocationDeleteView(generics.DestroyAPIView):
@@ -142,8 +224,36 @@ class FundingAllocationDeleteView(generics.DestroyAPIView):
     queryset = FundingAllocation.objects.all()
     permission_classes = [IsAuthenticated]
     
-    def delete(self, request, pk):
-        return Response({'message': f'Funding allocation {pk} deletion will be implemented'})
+    def get_object(self):
+        """Get the funding allocation object and check permissions"""
+        allocation = super().get_object()
+        # Check if the user is the campaign creator
+        if allocation.campaign.creator != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only delete funding allocations for your own campaigns.")
+        
+        # Check if any actual amount has been spent (can't delete if money has been spent)
+        if allocation.actual_amount > 0:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Cannot delete funding allocation that has actual spending recorded.")
+        
+        return allocation
+    
+    def perform_destroy(self, instance):
+        """Perform the deletion"""
+        allocation_type = instance.get_allocation_type_display()
+        campaign_title = instance.campaign.title
+        instance.delete()
+        return allocation_type, campaign_title
+    
+    def destroy(self, request, *args, **kwargs):
+        """Handle DELETE request"""
+        instance = self.get_object()
+        allocation_type, campaign_title = self.perform_destroy(instance)
+        
+        return Response({
+            'message': f'Funding allocation "{allocation_type}" for campaign "{campaign_title}" has been deleted successfully'
+        }, status=status.HTTP_200_OK)
 
 
 class FundingProgressListView(generics.ListAPIView):

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
 import { logout } from '../../store/slices/authSlice';
+import LanguageSwitcher from '../common/LanguageSwitcher';
+import WalletConnection from '../blockchain/WalletConnection';
 import { 
   Bars3Icon, 
   XMarkIcon, 
@@ -9,7 +11,8 @@ import {
   FilmIcon,
   HomeIcon,
   PlusCircleIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 
 const Navbar: React.FC = () => {
@@ -32,6 +35,10 @@ const Navbar: React.FC = () => {
     { name: 'Dashboard', href: '/dashboard', icon: UserCircleIcon },
     { name: 'Create Campaign', href: '/create-campaign', icon: PlusCircleIcon },
     { name: 'Profile', href: '/profile', icon: UserGroupIcon },
+  ];
+
+  const adminNavigation = [
+    { name: 'Admin', href: '/admin', icon: Cog6ToothIcon },
   ];
 
   return (
@@ -68,10 +75,27 @@ const Navbar: React.FC = () => {
                 {item.name}
               </Link>
             ))}
+
+            {isAuthenticated && user?.user_type === 'admin' && adminNavigation.map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium flex items-center"
+              >
+                <item.icon className="h-5 w-5 mr-1" />
+                {item.name}
+              </Link>
+            ))}
+          </div>
+
+          {/* Language Switcher - Always visible */}
+          <div className="hidden md:flex items-center">
+            <LanguageSwitcher />
           </div>
 
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
+            <WalletConnection />
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-gray-700">
@@ -145,6 +169,14 @@ const Navbar: React.FC = () => {
                 {item.name}
               </Link>
             ))}
+
+            {/* Language Switcher for Mobile */}
+            <div className="pt-4 pb-3 border-t border-gray-200">
+              <div className="px-3 py-2 text-sm text-gray-700 mb-2">Language / භාෂාව / மொழி</div>
+              <div className="px-3">
+                <LanguageSwitcher onLanguageChange={() => setIsOpen(false)} />
+              </div>
+            </div>
 
             {isAuthenticated ? (
               <div className="pt-4 pb-3 border-t border-gray-200">

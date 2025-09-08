@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { fetchCampaigns } from '../store/slices/campaignSlice';
+import Web3Test from '../components/blockchain/Web3Test';
 import { 
   FilmIcon, 
   CurrencyDollarIcon, 
@@ -12,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Home: React.FC = () => {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const { campaigns, isLoading } = useAppSelector((state) => state.campaigns);
 
@@ -19,12 +22,14 @@ const Home: React.FC = () => {
     dispatch(fetchCampaigns({ page: 1, status: 'active' }));
   }, [dispatch]);
 
-  const featuredCampaigns = campaigns.slice(0, 3);
+  // Ensure campaigns is always an array
+  const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
+  const featuredCampaigns = safeCampaigns.slice(0, 3);
 
   const features = [
     {
       icon: FilmIcon,
-      title: 'Film Funding',
+      title: t('campaigns.title'),
       description: 'Support independent filmmakers and content creators in Sri Lanka through transparent crowdfunding.',
     },
     {
@@ -74,6 +79,13 @@ const Home: React.FC = () => {
               </Link>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Web3 Test Section - Remove in production */}
+      <section className="py-8 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Web3Test />
         </div>
       </section>
 

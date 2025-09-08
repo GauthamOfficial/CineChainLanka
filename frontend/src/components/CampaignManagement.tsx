@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAppSelector } from '../store/hooks';
+import { useAppSelector, useAppDispatch } from '../store/hooks';
+import { fetchUserProfile } from '../store/slices/userSlice';
+import { deleteCampaign } from '../store/slices/campaignSlice';
 import { 
   EyeIcon, 
   PencilIcon, 
@@ -11,12 +13,50 @@ import {
 } from '@heroicons/react/24/outline';
 
 const CampaignManagement: React.FC = () => {
-  const { campaigns } = useAppSelector((state) => state.campaigns);
+  const dispatch = useAppDispatch();
+  const { campaigns, isLoading } = useAppSelector((state) => state.campaigns);
   const { user } = useAppSelector((state) => state.auth);
+  const { profile } = useAppSelector((state) => state.user);
+  
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    campaignId: number | null;
+    campaignTitle: string;
+  }>({
+    isOpen: false,
+    campaignId: null,
+    campaignTitle: ''
+  });
+
+  // Ensure user profile is loaded
+  useEffect(() => {
+    if (user && !profile) {
+      dispatch(fetchUserProfile());
+    }
+  }, [dispatch, user, profile]);
 
   // Ensure campaigns array is always defined
   const campaignsArray = Array.isArray(campaigns) ? campaigns : [];
-  const userCampaigns = campaignsArray.filter(c => c.creator.id === user?.id);
+  
+  // Use either profile or user for current user info
+  const currentUser = profile || user;
+  
+  // Filter campaigns with null safety checks
+  const userCampaigns = campaignsArray.filter(c => {
+    if (!c.creator || !currentUser) return false;
+    return c.creator.id === currentUser.id;
+  });
+
+  // Debug logging (can be removed in production)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('CampaignManagement Debug:', {
+      totalCampaigns: campaignsArray.length,
+      currentUserId: currentUser?.id,
+      userCampaigns: userCampaigns.length,
+      hasAuthUser: !!user,
+      hasProfile: !!profile
+    });
+  }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-LK', {
@@ -53,6 +93,37 @@ const CampaignManagement: React.FC = () => {
     const diffTime = endDateObj.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 0 ? diffDays : 0;
+  };
+
+  const handleDeleteClick = (campaign: any) => {
+    setDeleteConfirmation({
+      isOpen: true,
+      campaignId: campaign.id,
+      campaignTitle: campaign.title
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteConfirmation.campaignId) {
+      try {
+        await dispatch(deleteCampaign(deleteConfirmation.campaignId)).unwrap();
+        setDeleteConfirmation({
+          isOpen: false,
+          campaignId: null,
+          campaignTitle: ''
+        });
+      } catch (error) {
+        // Error is handled by the slice
+      }
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmation({
+      isOpen: false,
+      campaignId: null,
+      campaignTitle: ''
+    });
   };
 
   return (
@@ -147,6 +218,7 @@ const CampaignManagement: React.FC = () => {
                     )}
                     {campaign.status === 'draft' && (
                       <button
+                        onClick={() => handleDeleteClick(campaign)}
                         className="p-2 text-gray-400 hover:text-red-600 transition-colors"
                         title="Delete Campaign"
                       >
@@ -160,6 +232,41 @@ const CampaignManagement: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmation.isOpen && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3 text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <TrashIcon className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mt-4">Delete Campaign</h3>
+              <div className="mt-2 px-7 py-3">
+                <p className="text-sm text-gray-500">
+                  Are you sure you want to delete "{deleteConfirmation.campaignTitle}"? 
+                  This action cannot be undone.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 mt-4">
+                <button
+                  onClick={handleDeleteCancel}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isLoading ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

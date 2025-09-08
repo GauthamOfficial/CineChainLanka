@@ -7,6 +7,10 @@ from django.utils.translation import gettext_lazy as _
 from .models import (
     KYCRequest, KYCVerification, KYCDocument, KYCComplianceCheck
 )
+from .serializers import (
+    KYCRequestSerializer, KYCDocumentSerializer, KYCDocumentUpdateSerializer,
+    KYCVerificationSerializer, KYCComplianceCheckSerializer
+)
 
 
 # Placeholder views - will be implemented in detail later
@@ -111,10 +115,34 @@ class KYCDocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
 class KYCDocumentUpdateView(generics.UpdateAPIView):
     """Update KYC document"""
     queryset = KYCDocument.objects.all()
+    serializer_class = KYCDocumentUpdateSerializer
     permission_classes = [IsAuthenticated]
     
-    def put(self, request, pk):
-        return Response({'message': f'KYC document {pk} update will be implemented'})
+    def get_object(self):
+        """Get the KYC document object and check permissions"""
+        document = super().get_object()
+        # Check if the user owns the KYC request
+        if document.kyc_request.user != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only update your own KYC documents.")
+        return document
+    
+    def perform_update(self, serializer):
+        """Perform the update"""
+        serializer.save()
+    
+    def update(self, request, *args, **kwargs):
+        """Handle both PUT and PATCH requests"""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        return Response({
+            'message': 'KYC document updated successfully',
+            'data': KYCDocumentSerializer(instance).data
+        }, status=status.HTTP_200_OK)
 
 
 class KYCDocumentDeleteView(generics.DestroyAPIView):
@@ -122,8 +150,45 @@ class KYCDocumentDeleteView(generics.DestroyAPIView):
     queryset = KYCDocument.objects.all()
     permission_classes = [IsAuthenticated]
     
-    def delete(self, request, pk):
-        return Response({'message': f'KYC document {pk} deletion will be implemented'})
+    def get_object(self):
+        """Get the KYC document object and check permissions"""
+        document = super().get_object()
+        # Check if the user owns the KYC request
+        if document.kyc_request.user != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only delete your own KYC documents.")
+        
+        # Check if document is still pending (can't delete verified/rejected docs)
+        if document.status in ['verified', 'rejected']:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError(f"Cannot delete document with status: {document.get_status_display()}")
+        
+        return document
+    
+    def perform_destroy(self, instance):
+        """Perform the deletion"""
+        document_name = instance.document_name
+        document_type = instance.get_document_type_display()
+        
+        # Delete the file from storage if it exists
+        if instance.document_file:
+            try:
+                instance.document_file.delete(save=False)
+            except Exception as e:
+                # Log the error but don't fail the deletion
+                pass
+        
+        instance.delete()
+        return document_name, document_type
+    
+    def destroy(self, request, *args, **kwargs):
+        """Handle DELETE request"""
+        instance = self.get_object()
+        document_name, document_type = self.perform_destroy(instance)
+        
+        return Response({
+            'message': f'KYC document "{document_name}" ({document_type}) has been deleted successfully'
+        }, status=status.HTTP_200_OK)
 
 
 class KYCComplianceCheckListView(generics.ListAPIView):

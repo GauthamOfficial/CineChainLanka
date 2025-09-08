@@ -35,8 +35,25 @@ const Dashboard: React.FC = () => {
   // Use user from auth state if profile is not available
   const currentUser = profile || user;
   
-  const userCampaigns = campaignsArray.filter(c => c.creator?.id === currentUser?.id);
-  const userTransactions = transactionsArray.filter(t => t.backer?.id === currentUser?.id);
+  const userCampaigns = campaignsArray.filter(c => {
+    if (!c.creator || !currentUser) return false;
+    return c.creator.id === currentUser.id;
+  });
+  const userTransactions = transactionsArray.filter(t => {
+    if (!t.backer || !currentUser) return false;
+    return t.backer.id === currentUser.id;
+  });
+
+  // Debug logging (can be removed in production)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Dashboard Debug:', {
+      totalCampaigns: campaignsArray.length,
+      currentUserId: currentUser?.id,
+      userCampaigns: userCampaigns.length,
+      hasAuthUser: !!user,
+      hasProfile: !!profile
+    });
+  }
 
   // Show loading state while data is being fetched
   if (userLoading || campaignsLoading || transactionsLoading) {

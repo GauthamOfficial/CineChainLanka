@@ -7,16 +7,15 @@ from django.utils.translation import gettext_lazy as _
 from .models import (
     PaymentMethod, Transaction, Contribution, Refund, PaymentProvider
 )
+from .serializers import PaymentMethodSerializer
 
 
-# Placeholder views - will be implemented in detail later
+# Payment Methods API
 class PaymentMethodListView(generics.ListAPIView):
     """List payment methods"""
-    queryset = PaymentMethod.objects.all()
+    queryset = PaymentMethod.objects.filter(is_active=True)
+    serializer_class = PaymentMethodSerializer
     permission_classes = [AllowAny]
-    
-    def get(self, request):
-        return Response({'message': 'Payment methods will be implemented'})
 
 
 class PaymentMethodDetailView(generics.RetrieveAPIView):

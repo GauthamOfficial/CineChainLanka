@@ -31,6 +31,7 @@ urlpatterns = [
         path('payments/', include('payments.urls')),
         path('kyc/', include('kyc.urls')),
         path('funding/', include('funding.urls')),
+        path('blockchain/', include('blockchain.urls')),
     ])),
     
     # Authentication endpoints

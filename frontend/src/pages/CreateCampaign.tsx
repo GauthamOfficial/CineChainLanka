@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { createCampaign, clearError } from '../store/slices/campaignSlice';
+import { createCampaign, updateCampaign, fetchCampaignById, clearError } from '../store/slices/campaignSlice';
 import { 
   PhotoIcon, 
   DocumentTextIcon,
@@ -30,8 +30,11 @@ interface CampaignFormData {
 
 const CreateCampaign: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const dispatch = useAppDispatch();
-  const { isLoading, error } = useAppSelector((state) => state.campaigns);
+  const { isLoading, error, currentCampaign } = useAppSelector((state) => state.campaigns);
+  
+  const isEditing = !!id;
 
   const [formData, setFormData] = useState<CampaignFormData>({
     title: '',
@@ -68,6 +71,35 @@ const CreateCampaign: React.FC = () => {
       dispatch(clearError());
     };
   }, [dispatch]);
+
+  // Load campaign data when editing
+  useEffect(() => {
+    if (isEditing && id) {
+      dispatch(fetchCampaignById(parseInt(id)));
+    }
+  }, [dispatch, isEditing, id]);
+
+  // Populate form when editing campaign data is loaded
+  useEffect(() => {
+    if (isEditing && currentCampaign) {
+      setFormData({
+        title: currentCampaign.title || '',
+        subtitle: currentCampaign.subtitle || '',
+        description: currentCampaign.description || '',
+        short_description: currentCampaign.short_description || '',
+        category: currentCampaign.category?.id?.toString() || '',
+        funding_goal: currentCampaign.funding_goal?.toString() || '',
+        funding_deadline: currentCampaign.end_date ? new Date(currentCampaign.end_date).toISOString().split('T')[0] : '',
+        cover_image: null, // Keep as null, user can upload new image
+        rewards: currentCampaign.rewards?.map(reward => ({
+          title: reward.title || '',
+          description: reward.description || '',
+          amount: reward.amount?.toString() || '',
+          quantity: reward.max_backers?.toString() || '',
+        })) || []
+      });
+    }
+  }, [isEditing, currentCampaign]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -152,7 +184,11 @@ const CreateCampaign: React.FC = () => {
     });
 
     try {
-      await dispatch(createCampaign(formDataToSend)).unwrap();
+      if (isEditing && id) {
+        await dispatch(updateCampaign({ id: parseInt(id), campaignData: formDataToSend })).unwrap();
+      } else {
+        await dispatch(createCampaign(formDataToSend)).unwrap();
+      }
       navigate('/dashboard');
     } catch (error) {
       // Error is handled by the slice
@@ -163,7 +199,9 @@ const CreateCampaign: React.FC = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Create New Campaign</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {isEditing ? 'Edit Campaign' : 'Create New Campaign'}
+          </h1>
           <p className="text-gray-600 mt-2">
             Share your creative vision and start raising funds for your project
           </p>
@@ -471,7 +509,7 @@ const CreateCampaign: React.FC = () => {
               disabled={isLoading}
               className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {isLoading ? 'Creating...' : 'Create Campaign'}
+              {isLoading ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update Campaign' : 'Create Campaign')}
             </button>
           </div>
         </form>

@@ -118,7 +118,7 @@ export const updateCampaign = createAsyncThunk(
   'campaigns/updateCampaign',
   async ({ id, campaignData }: { id: number; campaignData: FormData }, { rejectWithValue }) => {
     try {
-      const response = await api.patch(`/api/campaigns/${id}/`, campaignData, {
+      const response = await api.patch(`/api/campaigns/${id}/update/`, campaignData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -126,6 +126,18 @@ export const updateCampaign = createAsyncThunk(
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update campaign');
+    }
+  }
+);
+
+export const deleteCampaign = createAsyncThunk(
+  'campaigns/deleteCampaign',
+  async (id: number, { rejectWithValue }) => {
+    try {
+      await api.delete(`/api/campaigns/${id}/delete/`);
+      return id;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete campaign');
     }
   }
 );
@@ -204,6 +216,13 @@ const campaignSlice = createSlice({
         }
         if (state.currentCampaign?.id === action.payload.id) {
           state.currentCampaign = action.payload;
+        }
+      })
+      // Delete campaign
+      .addCase(deleteCampaign.fulfilled, (state, action) => {
+        state.campaigns = state.campaigns.filter(c => c.id !== action.payload);
+        if (state.currentCampaign?.id === action.payload) {
+          state.currentCampaign = null;
         }
       });
   },

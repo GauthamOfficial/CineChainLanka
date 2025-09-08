@@ -80,10 +80,40 @@ class CampaignDetailView(generics.RetrieveAPIView):
 class CampaignUpdateView(generics.UpdateAPIView):
     """Update campaign"""
     queryset = Campaign.objects.all()
+    serializer_class = CampaignSerializer
     permission_classes = [IsAuthenticated]
     
-    def put(self, request, pk):
-        return Response({'message': f'Campaign {pk} update will be implemented'})
+    def get_object(self):
+        """Get the campaign object and check permissions"""
+        campaign = super().get_object()
+        # Check if the user is the campaign creator
+        if campaign.creator != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only update your own campaigns.")
+        
+        # Check if campaign can be updated (only draft campaigns)
+        if campaign.status not in ['draft']:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Only draft campaigns can be updated.")
+        
+        return campaign
+    
+    def perform_update(self, serializer):
+        """Perform the update"""
+        serializer.save()
+    
+    def update(self, request, *args, **kwargs):
+        """Handle both PUT and PATCH requests"""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        return Response({
+            'message': 'Campaign updated successfully',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
 
 
 class CampaignDeleteView(generics.DestroyAPIView):
@@ -91,8 +121,44 @@ class CampaignDeleteView(generics.DestroyAPIView):
     queryset = Campaign.objects.all()
     permission_classes = [IsAuthenticated]
     
-    def delete(self, request, pk):
-        return Response({'message': f'Campaign {pk} deletion will be implemented'})
+    def get_object(self):
+        """Get the campaign object and check permissions"""
+        campaign = super().get_object()
+        # Check if the user is the campaign creator
+        if campaign.creator != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only delete your own campaigns.")
+        
+        # Check if campaign can be deleted (only draft campaigns)
+        if campaign.status not in ['draft']:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Only draft campaigns can be deleted.")
+        
+        return campaign
+    
+    def perform_destroy(self, instance):
+        """Perform the deletion"""
+        campaign_title = instance.title
+        
+        # Delete the cover image file if it exists
+        if instance.cover_image:
+            try:
+                instance.cover_image.delete(save=False)
+            except Exception as e:
+                # Log the error but don't fail the deletion
+                pass
+        
+        instance.delete()
+        return campaign_title
+    
+    def destroy(self, request, *args, **kwargs):
+        """Handle DELETE request"""
+        instance = self.get_object()
+        campaign_title = self.perform_destroy(instance)
+        
+        return Response({
+            'message': f'Campaign "{campaign_title}" has been deleted successfully'
+        }, status=status.HTTP_200_OK)
 
 
 class CampaignCategoryListView(generics.ListAPIView):
@@ -143,10 +209,34 @@ class CampaignRewardDetailView(generics.RetrieveAPIView):
 class CampaignRewardUpdateView(generics.UpdateAPIView):
     """Update campaign reward"""
     queryset = CampaignReward.objects.all()
+    serializer_class = CampaignRewardSerializer
     permission_classes = [IsAuthenticated]
     
-    def put(self, request, pk):
-        return Response({'message': f'Reward {pk} update will be implemented'})
+    def get_object(self):
+        """Get the reward object and check permissions"""
+        reward = super().get_object()
+        # Check if the user is the campaign creator
+        if reward.campaign.creator != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only update rewards for your own campaigns.")
+        return reward
+    
+    def perform_update(self, serializer):
+        """Perform the update"""
+        serializer.save()
+    
+    def update(self, request, *args, **kwargs):
+        """Handle both PUT and PATCH requests"""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        return Response({
+            'message': 'Campaign reward updated successfully',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
 
 
 class CampaignRewardDeleteView(generics.DestroyAPIView):
@@ -154,8 +244,30 @@ class CampaignRewardDeleteView(generics.DestroyAPIView):
     queryset = CampaignReward.objects.all()
     permission_classes = [IsAuthenticated]
     
-    def delete(self, request, pk):
-        return Response({'message': f'Reward {pk} deletion will be implemented'})
+    def get_object(self):
+        """Get the reward object and check permissions"""
+        reward = super().get_object()
+        # Check if the user is the campaign creator
+        if reward.campaign.creator != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only delete rewards for your own campaigns.")
+        return reward
+    
+    def perform_destroy(self, instance):
+        """Perform the deletion"""
+        campaign_title = instance.campaign.title
+        reward_title = instance.title
+        instance.delete()
+        return campaign_title, reward_title
+    
+    def destroy(self, request, *args, **kwargs):
+        """Handle DELETE request"""
+        instance = self.get_object()
+        campaign_title, reward_title = self.perform_destroy(instance)
+        
+        return Response({
+            'message': f'Reward "{reward_title}" for campaign "{campaign_title}" has been deleted successfully'
+        }, status=status.HTTP_200_OK)
 
 
 class CampaignUpdateListView(generics.ListCreateAPIView):

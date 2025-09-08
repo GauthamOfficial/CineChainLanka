@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "campaigns",
     "payments",
     "kyc",
+    "blockchain",
 ]
 
 MIDDLEWARE = [
@@ -287,3 +288,48 @@ LOGGING = {
 
 # Create logs directory if it doesn't exist
 os.makedirs(BASE_DIR / 'logs', exist_ok=True)
+
+# IPFS Configuration
+IPFS_GATEWAY_URLS = [
+    'https://ipfs.io/ipfs/',
+    'https://gateway.pinata.cloud/ipfs/',
+    'https://cloudflare-ipfs.com/ipfs/',
+]
+
+# Pinata IPFS Service Configuration
+PINATA_API_KEY = os.getenv('PINATA_API_KEY', '')
+PINATA_SECRET_KEY = os.getenv('PINATA_SECRET_KEY', '')
+
+# Blockchain Configuration
+BLOCKCHAIN_NETWORKS = {
+    'ethereum': {
+        'chain_id': 1,
+        'rpc_url': os.getenv('ETHEREUM_RPC_URL', 'https://mainnet.infura.io/v3/YOUR_PROJECT_ID'),
+        'explorer_url': 'https://etherscan.io',
+        'is_testnet': False,
+    },
+    'polygon': {
+        'chain_id': 137,
+        'rpc_url': os.getenv('POLYGON_RPC_URL', 'https://polygon-rpc.com'),
+        'explorer_url': 'https://polygonscan.com',
+        'is_testnet': False,
+    },
+    'polygon_mumbai': {
+        'chain_id': 80001,
+        'rpc_url': os.getenv('MUMBAI_RPC_URL', 'https://rpc-mumbai.maticvigil.com'),
+        'explorer_url': 'https://mumbai.polygonscan.com',
+        'is_testnet': True,
+    },
+}
+
+# Smart Contract Addresses (will be populated after deployment)
+SMART_CONTRACT_ADDRESSES = {
+    'campaign_funding': os.getenv('CAMPAIGN_FUNDING_CONTRACT_ADDRESS', ''),
+    'nft': os.getenv('NFT_CONTRACT_ADDRESS', ''),
+    'usdt': os.getenv('USDT_CONTRACT_ADDRESS', ''),
+}
+
+# Gas Price Settings (in Gwei)
+DEFAULT_GAS_PRICE = 20
+MAX_GAS_PRICE = 100
+GAS_PRICE_MULTIPLIER = 1.1

@@ -20,6 +20,9 @@ const Campaigns: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState(filters.search);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Ensure campaigns is always an array
+  const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
+
   const categories = [
     { id: 1, name: 'Film', icon: '🎬' },
     { id: 2, name: 'Documentary', icon: '📹' },
@@ -239,7 +242,7 @@ const Campaigns: React.FC = () => {
               </div>
             ))}
           </div>
-        ) : campaigns.length === 0 ? (
+        ) : safeCampaigns.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-gray-400 text-6xl mb-4">🔍</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No campaigns found</h3>
@@ -250,7 +253,7 @@ const Campaigns: React.FC = () => {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {campaigns.map((campaign) => (
+              {safeCampaigns.map((campaign) => (
                 <div key={campaign.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
                   {/* Campaign Image */}
                   <div className="relative">
