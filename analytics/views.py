@@ -58,8 +58,8 @@ class CreatorAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
                     'share_count': share_count,
                     'created_at': campaign.created_at.isoformat(),
                     'end_date': campaign.end_date.isoformat(),
-                    'funding_progress': funding_progress,
-                    'days_remaining': max(0, (campaign.end_date - timezone.now().date()).days),
+                    'funding_progress': float(funding_progress),
+                    'days_remaining': max(0, (campaign.end_date.date() - timezone.now().date()).days),
                     'avg_contribution': float(avg_contribution),
                     'conversion_rate': conversion_rate
                 })
@@ -69,9 +69,9 @@ class CreatorAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
             active_campaigns = campaigns.filter(status='active').count()
             completed_campaigns = campaigns.filter(status__in=['funded', 'completed']).count()
             from decimal import Decimal
-            total_funding_raised = sum(Decimal(str(c.current_funding)) for c in campaigns)
+            total_funding_raised = float(sum(c.current_funding for c in campaigns))
             total_backers = sum(c.backer_count for c in campaigns)
-            avg_campaign_performance = Decimal(str(sum(c['funding_progress'] for c in campaign_metrics) / max(len(campaign_metrics), 1)))
+            avg_campaign_performance = float(sum(c['funding_progress'] for c in campaign_metrics) / max(len(campaign_metrics), 1))
             
             # Get top performing campaigns
             top_performing = sorted(campaign_metrics, key=lambda x: x['funding_progress'], reverse=True)[:5]
