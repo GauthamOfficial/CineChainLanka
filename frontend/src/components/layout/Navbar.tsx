@@ -12,7 +12,10 @@ import {
   HomeIcon,
   PlusCircleIcon,
   UserGroupIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  ChartBarIcon,
+  CurrencyDollarIcon,
+  ShoppingBagIcon
 } from '@heroicons/react/24/outline';
 
 const Navbar: React.FC = () => {
@@ -29,12 +32,19 @@ const Navbar: React.FC = () => {
   const navigation = [
     { name: 'Home', href: '/', icon: HomeIcon },
     { name: 'Campaigns', href: '/campaigns', icon: FilmIcon },
+    { name: 'Marketplace', href: '/marketplace', icon: ShoppingBagIcon },
   ];
 
   const authenticatedNavigation = [
     { name: 'Dashboard', href: '/dashboard', icon: UserCircleIcon },
     { name: 'Create Campaign', href: '/create-campaign', icon: PlusCircleIcon },
     { name: 'Profile', href: '/profile', icon: UserGroupIcon },
+  ];
+
+  const analyticsNavigation = [
+    { name: 'Revenue Analytics', href: '/analytics/revenue', icon: CurrencyDollarIcon },
+    { name: 'Creator Analytics', href: '/analytics/creator', icon: ChartBarIcon },
+    { name: 'Investor Portfolio', href: '/analytics/investor', icon: ChartBarIcon },
   ];
 
   const adminNavigation = [
@@ -66,6 +76,17 @@ const Navbar: React.FC = () => {
             ))}
 
             {isAuthenticated && authenticatedNavigation.map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium flex items-center"
+              >
+                <item.icon className="h-5 w-5 mr-1" />
+                {item.name}
+              </Link>
+            ))}
+
+            {isAuthenticated && analyticsNavigation.map((item) => (
               <Link
                 key={item.name}
                 to={item.href}
@@ -159,6 +180,18 @@ const Navbar: React.FC = () => {
             ))}
 
             {isAuthenticated && authenticatedNavigation.map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                className="text-gray-700 hover:text-primary-600 block px-3 py-2 rounded-md text-base font-medium flex items-center"
+                onClick={() => setIsOpen(false)}
+              >
+                <item.icon className="h-5 w-5 mr-2" />
+                {item.name}
+              </Link>
+            ))}
+
+            {isAuthenticated && analyticsNavigation.map((item) => (
               <Link
                 key={item.name}
                 to={item.href}

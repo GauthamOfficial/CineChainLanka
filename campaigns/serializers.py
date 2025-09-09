@@ -31,15 +31,25 @@ class CampaignSerializer(serializers.ModelSerializer):
     category = CampaignCategorySerializer(read_only=True)
     rewards = CampaignRewardSerializer(many=True, read_only=True)
     
+    # Add computed properties as serializer fields
+    funding_percentage = serializers.ReadOnlyField()
+    days_remaining = serializers.ReadOnlyField()
+    is_active = serializers.ReadOnlyField()
+    is_funded = serializers.ReadOnlyField()
+    is_expired = serializers.ReadOnlyField()
+    
     class Meta:
         model = Campaign
         fields = [
             'id', 'title', 'subtitle', 'description', 'short_description',
             'category', 'creator', 'funding_goal', 'current_funding',
-            'end_date', 'status', 'cover_image', 'created_at',
-            'updated_at', 'rewards'
+            'start_date', 'end_date', 'estimated_completion_date', 'status', 
+            'cover_image', 'video_url', 'gallery_images', 'tags',
+            'risks_and_challenges', 'team_members', 'view_count', 'backer_count',
+            'funding_percentage', 'days_remaining', 'is_active', 'is_funded', 'is_expired',
+            'created_at', 'updated_at', 'rewards'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'current_funding']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'current_funding', 'view_count', 'backer_count']
 
 
 class CampaignCreateSerializer(serializers.ModelSerializer):

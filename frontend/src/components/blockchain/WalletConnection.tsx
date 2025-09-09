@@ -99,14 +99,34 @@ const WalletConnection: React.FC<WalletConnectionProps> = ({
 
   if (error) {
     return (
-      <div className={`flex items-center space-x-2 ${className}`}>
-        <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
-        <span className="text-sm text-red-600">{error}</span>
+      <div className={`flex flex-col space-y-2 ${className}`}>
+        <div className="flex items-center space-x-2">
+          <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
+          <span className="text-sm text-red-600">{error}</span>
+        </div>
+        {error.includes('not installed') && (
+          <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+            <p>To use blockchain features, please:</p>
+            <ol className="list-decimal list-inside mt-1 space-y-1">
+              <li>Install MetaMask browser extension</li>
+              <li>Create or import a wallet</li>
+              <li>Refresh this page and try again</li>
+            </ol>
+            <a 
+              href="https://metamask.io" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline mt-1 inline-block"
+            >
+              Download MetaMask →
+            </a>
+          </div>
+        )}
         <button
           onClick={handleConnect}
-          className="ml-2 text-sm text-blue-600 hover:text-blue-800 underline"
+          className="text-sm text-blue-600 hover:text-blue-800 underline"
         >
-          Retry
+          Retry Connection
         </button>
       </div>
     );

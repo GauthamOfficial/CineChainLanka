@@ -17,6 +17,10 @@ import CreateCampaign from './pages/CreateCampaign';
 import Profile from './pages/Profile';
 import KYC from './pages/KYC';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import RevenueAnalytics from './pages/analytics/RevenueAnalytics';
+import InvestorPortfolio from './pages/analytics/InvestorPortfolio';
+import CreatorAnalytics from './pages/analytics/CreatorAnalytics';
+import NFTMarketplace from './pages/marketplace/NFTMarketplace';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import './i18n';
 
@@ -73,6 +77,30 @@ const AppContent: React.FC = () => {
             <Route path="/admin" element={
               <ProtectedRoute>
                 <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            
+            {/* Analytics Routes */}
+            <Route path="/analytics/revenue" element={
+              <ProtectedRoute>
+                <RevenueAnalytics />
+              </ProtectedRoute>
+            } />
+            <Route path="/analytics/creator" element={
+              <ProtectedRoute>
+                <CreatorAnalytics />
+              </ProtectedRoute>
+            } />
+            <Route path="/analytics/investor" element={
+              <ProtectedRoute>
+                <InvestorPortfolio />
+              </ProtectedRoute>
+            } />
+            
+            {/* Marketplace Routes */}
+            <Route path="/marketplace" element={
+              <ProtectedRoute>
+                <NFTMarketplace />
               </ProtectedRoute>
             } />
           </Routes>

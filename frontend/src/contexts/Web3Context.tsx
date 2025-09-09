@@ -30,7 +30,29 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
 
   // Check if MetaMask is installed
   const isMetaMaskInstalled = () => {
-    return typeof window !== 'undefined' && window.ethereum;
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    
+    // Check for MetaMask specifically
+    if (window.ethereum?.isMetaMask) {
+      return true;
+    }
+    
+    // Check for MetaMask in the provider name
+    if (window.ethereum?.providerMap) {
+      const providers = window.ethereum.providerMap;
+      if (providers.MetaMask) {
+        return true;
+      }
+    }
+    
+    // Fallback check for any ethereum provider
+    if (window.ethereum) {
+      return true;
+    }
+    
+    return false;
   };
 
   // Get the web3 instance
@@ -43,15 +65,31 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
 
   // Connect to MetaMask
   const connect = async () => {
-    if (!isMetaMaskInstalled()) {
-      setError('MetaMask is not installed. Please install MetaMask to continue.');
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
 
     try {
+      // Wait for provider to be available with timeout
+      const waitForProvider = (timeout = 5000) => {
+        return new Promise((resolve, reject) => {
+          const startTime = Date.now();
+          
+          const checkProvider = () => {
+            if (isMetaMaskInstalled()) {
+              resolve(true);
+            } else if (Date.now() - startTime > timeout) {
+              reject(new Error('MetaMask is not installed. Please install MetaMask browser extension to continue. Visit https://metamask.io to download and install MetaMask.'));
+            } else {
+              setTimeout(checkProvider, 100);
+            }
+          };
+          
+          checkProvider();
+        });
+      };
+
+      await waitForProvider();
+
       const web3Instance = getWeb3();
       if (!web3Instance) {
         throw new Error('Web3 not available');
@@ -168,18 +206,53 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
   // Check connection on mount
   useEffect(() => {
     const checkConnection = async () => {
-      if (isMetaMaskInstalled() && localStorage.getItem('web3_connected') === 'true') {
-        try {
-          const web3Instance = getWeb3();
-          if (web3Instance) {
-            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-            if (accounts.length > 0) {
-              const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-              
-              setWeb3(web3Instance);
-              setAccount(accounts[0]);
-              setChainId(parseInt(chainId, 16));
+      // Wait a bit for the provider to be available
+      const checkProvider = () => {
+        if (isMetaMaskInstalled() && localStorage.getItem('web3_connected') === 'true') {
+          try {
+            const web3Instance = getWeb3();
+            if (web3Instance) {
+              return web3Instance;
             }
+          } catch (err) {
+            console.error('Error getting web3 instance:', err);
+          }
+        }
+        return null;
+      };
+
+      // Try immediately
+      let web3Instance = checkProvider();
+      
+      // If not available, try again after a short delay
+      if (!web3Instance) {
+        setTimeout(async () => {
+          web3Instance = checkProvider();
+          if (web3Instance) {
+            try {
+              const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+              if (accounts.length > 0) {
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                
+                setWeb3(web3Instance);
+                setAccount(accounts[0]);
+                setChainId(parseInt(chainId, 16));
+              }
+            } catch (err) {
+              console.error('Error checking connection:', err);
+              disconnect();
+            }
+          }
+        }, 1000);
+      } else {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts.length > 0) {
+            const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+            
+            setWeb3(web3Instance);
+            setAccount(accounts[0]);
+            setChainId(parseInt(chainId, 16));
           }
         } catch (err) {
           console.error('Error checking connection:', err);

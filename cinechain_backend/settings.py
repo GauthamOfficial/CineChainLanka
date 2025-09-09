@@ -56,6 +56,9 @@ INSTALLED_APPS = [
     "payments",
     "kyc",
     "blockchain",
+    "revenue",
+    "marketplace",
+    "analytics",
 ]
 
 MIDDLEWARE = [

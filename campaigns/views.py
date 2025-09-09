@@ -33,7 +33,7 @@ class CampaignListView(generics.ListCreateAPIView):
         return [AllowAny()]
     
     def get_queryset(self):
-        queryset = Campaign.objects.all()
+        queryset = Campaign.objects.select_related('creator', 'category').prefetch_related('rewards')
         
         # Filter by status
         status = self.request.query_params.get('status', None)
@@ -58,6 +58,32 @@ class CampaignListView(generics.ListCreateAPIView):
     
     def perform_create(self, serializer):
         serializer.save(creator=self.request.user)
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to return proper pagination format"""
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            paginated_response = self.get_paginated_response(serializer.data)
+            # Ensure the response has the expected format
+            return Response({
+                'results': paginated_response.data['results'],
+                'count': paginated_response.data['count'],
+                'next': paginated_response.data.get('next'),
+                'previous': paginated_response.data.get('previous'),
+                'current_page': self.paginator.page.number if hasattr(self, 'paginator') and self.paginator else 1,
+            })
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'results': serializer.data,
+            'count': len(serializer.data),
+            'next': None,
+            'previous': None,
+            'current_page': 1,
+        })
 
 
 class CampaignCreateView(generics.CreateAPIView):
@@ -72,7 +98,7 @@ class CampaignCreateView(generics.CreateAPIView):
 
 class CampaignDetailView(generics.RetrieveAPIView):
     """Retrieve campaign details"""
-    queryset = Campaign.objects.all()
+    queryset = Campaign.objects.select_related('creator', 'category').prefetch_related('rewards')
     serializer_class = CampaignSerializer
     permission_classes = [AllowAny]
 

@@ -315,6 +315,16 @@ contract CampaignFunding is ReentrancyGuard, Ownable {
     }
 
     /**
+     * @dev Get campaign creator address
+     * @param _campaignId Campaign ID
+     * @return Creator address
+     */
+    function getCampaignCreator(uint256 _campaignId) external view returns (address) {
+        require(_campaignId > 0 && _campaignId <= campaignCount, "Invalid campaign ID");
+        return campaigns[_campaignId].creator;
+    }
+
+    /**
      * @dev Emergency withdrawal function (only owner)
      */
     function emergencyWithdraw() external onlyOwner {
