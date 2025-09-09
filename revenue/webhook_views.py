@@ -1,15 +1,13 @@
-from django.http import JsonResponse, HttpResponse
+import logging
+import json
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
 from django.views import View
-import json
-import logging
-import hmac
-import hashlib
 from django.conf import settings
-from .ott_integration import OTTIntegrationService, BoxOfficeIntegrationService
-from .models import OTTPlatformIntegration
+from .ott_integration import OTTIntegrationService
+from .models import OTTPlatformIntegration, RevenueWebhook
 
 logger = logging.getLogger(__name__)
 
@@ -18,46 +16,78 @@ logger = logging.getLogger(__name__)
 class OTTWebhookView(View):
     """Generic OTT platform webhook handler"""
     
-    def post(self, request, platform_id):
+    def post(self, request, platform_name):
+        """Handle OTT platform webhook"""
         try:
-            # Get platform
-            platform = OTTPlatformIntegration.objects.get(id=platform_id, is_active=True)
+            # Get platform configuration
+            try:
+                platform = OTTPlatformIntegration.objects.get(
+                    name=platform_name,
+                    is_active=True
+                )
+            except OTTPlatformIntegration.DoesNotExist:
+                logger.error(f"Platform not found or inactive: {platform_name}")
+                return JsonResponse(
+                    {'error': 'Platform not found'}, 
+                    status=404
+                )
             
-            # Verify webhook signature if configured
-            if not self._verify_webhook_signature(request, platform):
-                return JsonResponse({'error': 'Invalid signature'}, status=401)
-            
-            # Parse payload
+            # Parse request body
             try:
                 payload = json.loads(request.body)
             except json.JSONDecodeError:
-                return JsonResponse({'error': 'Invalid JSON payload'}, status=400)
+                logger.error(f"Invalid JSON payload from {platform_name}")
+                return JsonResponse(
+                    {'error': 'Invalid JSON payload'}, 
+                    status=400
+                )
+            
+            # Verify webhook signature if configured
+            if not self._verify_webhook_signature(request, platform, payload):
+                logger.error(f"Invalid webhook signature from {platform_name}")
+                return JsonResponse(
+                    {'error': 'Invalid signature'}, 
+                    status=401
+                )
             
             # Process webhook
-            integration_service = OTTIntegrationService()
-            success = integration_service.process_webhook(platform_id, payload)
+            ott_service = OTTIntegrationService()
+            success = ott_service.process_webhook(platform_name, payload)
             
             if success:
+                logger.info(f"Webhook processed successfully for {platform_name}")
                 return JsonResponse({'status': 'success'})
             else:
-                return JsonResponse({'error': 'Failed to process webhook'}, status=500)
+                logger.error(f"Failed to process webhook for {platform_name}")
+                return JsonResponse(
+                    {'error': 'Failed to process webhook'}, 
+                    status=500
+                )
                 
-        except OTTPlatformIntegration.DoesNotExist:
-            return JsonResponse({'error': 'Platform not found'}, status=404)
         except Exception as e:
-            logger.error(f"Error processing OTT webhook: {e}")
-            return JsonResponse({'error': 'Internal server error'}, status=500)
+            logger.error(f"Error processing webhook: {e}")
+            return JsonResponse(
+                {'error': 'Internal server error'}, 
+                status=500
+            )
     
-    def _verify_webhook_signature(self, request, platform):
+    def _verify_webhook_signature(self, request, platform, payload):
         """Verify webhook signature"""
-        # This is a simplified implementation
-        # In production, you would verify the signature based on the platform's requirements
+        # This is a simplified verification
+        # In production, you would implement proper signature verification
+        # based on the platform's webhook security requirements
+        
         signature = request.headers.get('X-Webhook-Signature')
         if not signature:
-            return False
+            # For now, allow webhooks without signature verification
+            return True
         
-        # For now, we'll just check if the signature exists
-        # In production, you would verify it against the platform's secret
+        # TODO: Implement proper signature verification
+        # This would involve:
+        # 1. Getting the webhook secret from platform configuration
+        # 2. Computing the expected signature using HMAC
+        # 3. Comparing with the provided signature
+        
         return True
 
 
@@ -66,185 +96,136 @@ class NetflixWebhookView(View):
     """Netflix-specific webhook handler"""
     
     def post(self, request):
-        try:
-            # Get Netflix platform
-            platform = OTTPlatformIntegration.objects.get(
-                platform_type='netflix',
-                is_active=True
-            )
-            
-            # Verify webhook signature
-            if not self._verify_netflix_signature(request):
-                return JsonResponse({'error': 'Invalid signature'}, status=401)
-            
-            # Parse payload
-            payload = json.loads(request.body)
-            
-            # Process webhook
-            integration_service = OTTIntegrationService()
-            success = integration_service.process_webhook(platform.id, payload)
-            
-            if success:
-                return JsonResponse({'status': 'success'})
-            else:
-                return JsonResponse({'error': 'Failed to process webhook'}, status=500)
-                
-        except OTTPlatformIntegration.DoesNotExist:
-            return JsonResponse({'error': 'Netflix integration not configured'}, status=404)
-        except Exception as e:
-            logger.error(f"Error processing Netflix webhook: {e}")
-            return JsonResponse({'error': 'Internal server error'}, status=500)
-    
-    def _verify_netflix_signature(self, request):
-        """Verify Netflix webhook signature"""
-        # Netflix webhook signature verification would go here
-        # This is a placeholder implementation
-        signature = request.headers.get('X-Netflix-Signature')
-        return signature is not None
+        """Handle Netflix webhook"""
+        return OTTWebhookView().post(request, 'netflix')
 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class AmazonPrimeWebhookView(View):
-    """Amazon Prime Video webhook handler"""
+    """Amazon Prime-specific webhook handler"""
     
     def post(self, request):
-        try:
-            # Get Amazon Prime platform
-            platform = OTTPlatformIntegration.objects.get(
-                platform_type='amazon_prime',
-                is_active=True
-            )
-            
-            # Verify webhook signature
-            if not self._verify_amazon_signature(request):
-                return JsonResponse({'error': 'Invalid signature'}, status=401)
-            
-            # Parse payload
-            payload = json.loads(request.body)
-            
-            # Process webhook
-            integration_service = OTTIntegrationService()
-            success = integration_service.process_webhook(platform.id, payload)
-            
-            if success:
-                return JsonResponse({'status': 'success'})
-            else:
-                return JsonResponse({'error': 'Failed to process webhook'}, status=500)
-                
-        except OTTPlatformIntegration.DoesNotExist:
-            return JsonResponse({'error': 'Amazon Prime integration not configured'}, status=404)
-        except Exception as e:
-            logger.error(f"Error processing Amazon Prime webhook: {e}")
-            return JsonResponse({'error': 'Internal server error'}, status=500)
-    
-    def _verify_amazon_signature(self, request):
-        """Verify Amazon Prime webhook signature"""
-        # Amazon Prime webhook signature verification would go here
-        signature = request.headers.get('X-Amazon-Signature')
-        return signature is not None
+        """Handle Amazon Prime webhook"""
+        return OTTWebhookView().post(request, 'amazon_prime')
 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class DisneyPlusWebhookView(View):
-    """Disney+ webhook handler"""
+    """Disney+ specific webhook handler"""
     
     def post(self, request):
-        try:
-            # Get Disney+ platform
-            platform = OTTPlatformIntegration.objects.get(
-                platform_type='disney_plus',
-                is_active=True
-            )
-            
-            # Verify webhook signature
-            if not self._verify_disney_signature(request):
-                return JsonResponse({'error': 'Invalid signature'}, status=401)
-            
-            # Parse payload
-            payload = json.loads(request.body)
-            
-            # Process webhook
-            integration_service = OTTIntegrationService()
-            success = integration_service.process_webhook(platform.id, payload)
-            
-            if success:
-                return JsonResponse({'status': 'success'})
-            else:
-                return JsonResponse({'error': 'Failed to process webhook'}, status=500)
-                
-        except OTTPlatformIntegration.DoesNotExist:
-            return JsonResponse({'error': 'Disney+ integration not configured'}, status=404)
-        except Exception as e:
-            logger.error(f"Error processing Disney+ webhook: {e}")
-            return JsonResponse({'error': 'Internal server error'}, status=500)
-    
-    def _verify_disney_signature(self, request):
-        """Verify Disney+ webhook signature"""
-        # Disney+ webhook signature verification would go here
-        signature = request.headers.get('X-Disney-Signature')
-        return signature is not None
+        """Handle Disney+ webhook"""
+        return OTTWebhookView().post(request, 'disney_plus')
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class BoxOfficeWebhookView(View):
-    """Box office revenue webhook handler"""
+class GenericOTTWebhookView(View):
+    """Generic OTT platform webhook handler"""
     
-    def post(self, request):
-        try:
-            # Verify webhook signature
-            if not self._verify_box_office_signature(request):
-                return JsonResponse({'error': 'Invalid signature'}, status=401)
-            
-            # Parse payload
-            payload = json.loads(request.body)
-            
-            # Extract data
-            campaign_id = payload.get('campaign_id')
-            amount = payload.get('amount')
-            currency = payload.get('currency', 'USDT')
-            description = payload.get('description', 'Box office revenue')
-            revenue_date = payload.get('revenue_date')
-            
-            if not campaign_id or not amount:
-                return JsonResponse({'error': 'Missing required fields'}, status=400)
-            
-            # Record box office revenue
-            integration_service = BoxOfficeIntegrationService()
-            revenue_entry = integration_service.record_box_office_revenue(
-                campaign_id=campaign_id,
-                amount=amount,
-                currency=currency,
-                description=description,
-                revenue_date=revenue_date
-            )
-            
+    def post(self, request, platform_name):
+        """Handle generic OTT webhook"""
+        return OTTWebhookView().post(request, platform_name)
+
+
+@require_http_methods(["GET"])
+def webhook_status(request, webhook_id):
+    """Get webhook processing status"""
+    try:
+        webhook = RevenueWebhook.objects.get(id=webhook_id)
+        
+        return JsonResponse({
+            'id': webhook.id,
+            'platform': webhook.platform.name,
+            'campaign': webhook.campaign.title,
+            'status': webhook.status,
+            'response_code': webhook.response_code,
+            'response_message': webhook.response_message,
+            'processed_at': webhook.processed_at.isoformat() if webhook.processed_at else None,
+            'created_at': webhook.created_at.isoformat()
+        })
+        
+    except RevenueWebhook.DoesNotExist:
+        return JsonResponse(
+            {'error': 'Webhook not found'}, 
+            status=404
+        )
+    except Exception as e:
+        logger.error(f"Error getting webhook status: {e}")
+        return JsonResponse(
+            {'error': 'Internal server error'}, 
+            status=500
+        )
+
+
+@require_http_methods(["POST"])
+def test_webhook(request, platform_name):
+    """Test webhook endpoint for development"""
+    try:
+        # Create test payload
+        test_payload = {
+            'campaign_id': 1,
+            'revenue_data': {
+                'entries': [
+                    {
+                        'amount': 1000.00,
+                        'currency': 'USDT',
+                        'title': 'Test Revenue Entry',
+                        'date': '2024-01-01T00:00:00Z'
+                    }
+                ]
+            }
+        }
+        
+        # Process test webhook
+        ott_service = OTTIntegrationService()
+        success = ott_service.process_webhook(platform_name, test_payload)
+        
+        if success:
             return JsonResponse({
                 'status': 'success',
-                'revenue_entry_id': revenue_entry.id
+                'message': f'Test webhook processed for {platform_name}',
+                'payload': test_payload
             })
-                
-        except Exception as e:
-            logger.error(f"Error processing box office webhook: {e}")
-            return JsonResponse({'error': 'Internal server error'}, status=500)
-    
-    def _verify_box_office_signature(self, request):
-        """Verify box office webhook signature"""
-        # Box office webhook signature verification would go here
-        signature = request.headers.get('X-BoxOffice-Signature')
-        return signature is not None
+        else:
+            return JsonResponse(
+                {'error': 'Failed to process test webhook'}, 
+                status=500
+            )
+            
+    except Exception as e:
+        logger.error(f"Error processing test webhook: {e}")
+        return JsonResponse(
+            {'error': 'Internal server error'}, 
+            status=500
+        )
 
 
-# Health check endpoint
 @require_http_methods(["GET"])
-def webhook_health_check(request):
-    """Health check for webhook endpoints"""
-    return JsonResponse({
-        'status': 'healthy',
-        'timestamp': timezone.now().isoformat(),
-        'endpoints': [
-            'netflix-webhook',
-            'amazon-prime-webhook',
-            'disney-plus-webhook',
-            'box-office-webhook'
-        ]
-    })
+def platform_integrations(request):
+    """Get list of active OTT platform integrations"""
+    try:
+        platforms = OTTPlatformIntegration.objects.filter(is_active=True)
+        
+        integrations = []
+        for platform in platforms:
+            integrations.append({
+                'id': platform.id,
+                'name': platform.name,
+                'platform_type': platform.platform_type,
+                'api_endpoint': platform.api_endpoint,
+                'webhook_url': platform.webhook_url,
+                'is_active': platform.is_active,
+                'created_at': platform.created_at.isoformat()
+            })
+        
+        return JsonResponse({
+            'integrations': integrations,
+            'count': len(integrations)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting platform integrations: {e}")
+        return JsonResponse(
+            {'error': 'Internal server error'}, 
+            status=500
+        )

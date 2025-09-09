@@ -50,11 +50,22 @@ async function main() {
   await cineChainNFT.deployed();
   console.log("CineChainNFT deployed to:", cineChainNFT.address);
 
+  // Deploy RoyaltyDistribution contract
+  console.log("Deploying RoyaltyDistribution...");
+  const RoyaltyDistribution = await ethers.getContractFactory("RoyaltyDistribution");
+  const royaltyDistribution = await RoyaltyDistribution.deploy(
+    usdtTokenAddress,
+    deployer.address // Platform wallet
+  );
+  await royaltyDistribution.deployed();
+  console.log("RoyaltyDistribution deployed to:", royaltyDistribution.address);
+
   // Verify contracts on block explorer (if not local)
   if (network.chainId !== 1337) {
     console.log("Waiting for block confirmations...");
     await campaignFunding.deployTransaction.wait(6);
     await cineChainNFT.deployTransaction.wait(6);
+    await royaltyDistribution.deployTransaction.wait(6);
 
     try {
       console.log("Verifying CampaignFunding...");
@@ -80,6 +91,16 @@ async function main() {
     } catch (error) {
       console.log("CineChainNFT verification failed:", error.message);
     }
+
+    try {
+      console.log("Verifying RoyaltyDistribution...");
+      await hre.run("verify:verify", {
+        address: royaltyDistribution.address,
+        constructorArguments: [usdtTokenAddress, deployer.address],
+      });
+    } catch (error) {
+      console.log("RoyaltyDistribution verification failed:", error.message);
+    }
   }
 
   // Save deployment info
@@ -95,6 +116,10 @@ async function main() {
       CineChainNFT: {
         address: cineChainNFT.address,
         transactionHash: cineChainNFT.deployTransaction.hash,
+      },
+      RoyaltyDistribution: {
+        address: royaltyDistribution.address,
+        transactionHash: royaltyDistribution.deployTransaction.hash,
       },
       USDT: {
         address: usdtTokenAddress,
@@ -122,6 +147,7 @@ async function main() {
   console.log("Network:", network.name, `(${network.chainId})`);
   console.log("CampaignFunding:", campaignFunding.address);
   console.log("CineChainNFT:", cineChainNFT.address);
+  console.log("RoyaltyDistribution:", royaltyDistribution.address);
   console.log("USDT Token:", usdtTokenAddress);
   console.log("Platform Wallet:", deployer.address);
   console.log("\nDeployment completed successfully!");

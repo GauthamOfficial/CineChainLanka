@@ -42,9 +42,7 @@ const Navbar: React.FC = () => {
   ];
 
   const analyticsNavigation = [
-    { name: 'Revenue Analytics', href: '/analytics/revenue', icon: CurrencyDollarIcon },
-    { name: 'Creator Analytics', href: '/analytics/creator', icon: ChartBarIcon },
-    { name: 'Investor Portfolio', href: '/analytics/investor', icon: ChartBarIcon },
+    { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
   ];
 
   const adminNavigation = [

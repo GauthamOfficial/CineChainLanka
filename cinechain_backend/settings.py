@@ -15,11 +15,16 @@ from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
 # Load environment variables
 load_dotenv()
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Load contract addresses from .env.contracts if it exists
+contracts_env_path = BASE_DIR / '.env.contracts'
+if contracts_env_path.exists():
+    load_dotenv(contracts_env_path)
 
 
 # Quick-start development settings - unsuitable for production
@@ -245,6 +250,47 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 # Redis settings for caching
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
+# Cache configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'KEY_PREFIX': 'cinechain',
+        'TIMEOUT': 300,  # 5 minutes default timeout
+    },
+    'sessions': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'KEY_PREFIX': 'cinechain_sessions',
+        'TIMEOUT': 86400,  # 24 hours for sessions
+    },
+    'api': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'KEY_PREFIX': 'cinechain_api',
+        'TIMEOUT': 600,  # 10 minutes for API responses
+    },
+}
+
+# Session configuration
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'sessions'
+SESSION_COOKIE_AGE = 86400  # 24 hours
+
+# Cache middleware
+CACHE_MIDDLEWARE_ALIAS = 'default'
+CACHE_MIDDLEWARE_SECONDS = 300  # 5 minutes
+CACHE_MIDDLEWARE_KEY_PREFIX = 'cinechain'
+
 # File upload settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
@@ -336,3 +382,104 @@ SMART_CONTRACT_ADDRESSES = {
 DEFAULT_GAS_PRICE = 20
 MAX_GAS_PRICE = 100
 GAS_PRICE_MULTIPLIER = 1.1
+
+# Web3 Configuration
+WEB3_RPC_URL = os.getenv('WEB3_RPC_URL', 'http://localhost:8545')
+PRIVATE_KEY = os.getenv('PRIVATE_KEY', '')
+
+# Smart Contract Addresses (from deployment)
+CAMPAIGN_FUNDING_ADDRESS = os.getenv('CAMPAIGN_FUNDING_ADDRESS', '')
+CINECHAIN_NFT_ADDRESS = os.getenv('CINECHAIN_NFT_ADDRESS', '')
+ROYALTY_DISTRIBUTION_ADDRESS = os.getenv('ROYALTY_DISTRIBUTION_ADDRESS', '')
+USDT_CONTRACT_ADDRESS = os.getenv('USDT_CONTRACT_ADDRESS', '')
+PLATFORM_WALLET_ADDRESS = os.getenv('PLATFORM_WALLET_ADDRESS', '')
+
+# OTT Platform Configuration
+OTT_PLATFORMS = {
+    'netflix': {
+        'api_endpoint': os.getenv('NETFLIX_API_ENDPOINT', ''),
+        'api_key': os.getenv('NETFLIX_API_KEY', ''),
+        'webhook_secret': os.getenv('NETFLIX_WEBHOOK_SECRET', ''),
+    },
+    'amazon_prime': {
+        'api_endpoint': os.getenv('AMAZON_PRIME_API_ENDPOINT', ''),
+        'api_key': os.getenv('AMAZON_PRIME_API_KEY', ''),
+        'webhook_secret': os.getenv('AMAZON_PRIME_WEBHOOK_SECRET', ''),
+    },
+    'disney_plus': {
+        'api_endpoint': os.getenv('DISNEY_PLUS_API_ENDPOINT', ''),
+        'api_key': os.getenv('DISNEY_PLUS_API_KEY', ''),
+        'webhook_secret': os.getenv('DISNEY_PLUS_WEBHOOK_SECRET', ''),
+    },
+}
+
+# Revenue Distribution Settings
+DEFAULT_CREATOR_PERCENTAGE = 30.0  # 30%
+DEFAULT_PLATFORM_PERCENTAGE = 5.0  # 5%
+DEFAULT_INVESTOR_PERCENTAGE = 65.0  # 65%
+
+# Marketplace Settings
+MARKETPLACE_PLATFORM_FEE_PERCENTAGE = 2.5  # 2.5%
+MARKETPLACE_CREATOR_ROYALTY_PERCENTAGE = 5.0  # 5%
+MARKETPLACE_MINIMUM_LISTING_PRICE = 1.0  # 1 USDT
+MARKETPLACE_MAXIMUM_LISTING_PRICE = 1000000.0  # 1M USDT
+MARKETPLACE_AUCTION_DURATION_HOURS = 72  # 72 hours
+
+# Analytics Settings
+ANALYTICS_CACHE_TTL = 300  # 5 minutes
+ANALYTICS_BATCH_SIZE = 100
+
+# Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'revenue': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'marketplace': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'blockchain': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}

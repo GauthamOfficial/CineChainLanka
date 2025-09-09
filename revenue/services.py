@@ -1,533 +1,403 @@
 import logging
 from decimal import Decimal
 from typing import Dict, List, Optional, Any
-from django.db.models import Sum, Count, Q, F, Avg
+from django.db.models import Sum, Count, Avg, Q, F
 from django.utils import timezone
 from datetime import datetime, timedelta
 from .models import (
-    RevenueSource, RevenueEntry, RoyaltyDistribution, 
-    InvestorRoyalty, RevenueAnalytics, Campaign
+    RevenueEntry, RoyaltyDistribution, InvestorRoyalty, 
+    RevenueAnalytics, RevenueSource, Campaign
 )
-from blockchain.services import Web3Service, ContractService
-from blockchain.models import BlockchainNetwork, SmartContract
-from campaigns.models import Campaign
+from campaigns.models import Campaign as CampaignModel
 
 logger = logging.getLogger(__name__)
 
 
-class RevenueService:
-    """Service for revenue management"""
+class AnalyticsService:
+    """Service for revenue analytics and reporting"""
     
-    def __init__(self):
-        self.revenue_sources = RevenueSource.objects.filter(is_active=True)
-    
-    def create_revenue_entry(
-        self,
-        campaign_id: int,
-        source_id: int,
-        amount: Decimal,
-        currency: str,
-        description: str,
-        revenue_date: datetime,
-        verification_document=None
-    ) -> RevenueEntry:
-        """Create a new revenue entry"""
-        try:
-            campaign = Campaign.objects.get(id=campaign_id)
-            source = RevenueSource.objects.get(id=source_id)
-            
-            revenue_entry = RevenueEntry.objects.create(
-                campaign=campaign,
-                source=source,
-                amount=amount,
-                currency=currency,
-                description=description,
-                revenue_date=revenue_date,
-                verification_document=verification_document
-            )
-            
-            logger.info(f"Revenue entry created: {revenue_entry.id}")
-            return revenue_entry
-            
-        except Exception as e:
-            logger.error(f"Error creating revenue entry: {e}")
-            raise
-    
-    def verify_revenue_entry(self, revenue_entry_id: int, verified_by_id: int) -> bool:
-        """Verify a revenue entry"""
-        try:
-            revenue_entry = RevenueEntry.objects.get(id=revenue_entry_id)
-            revenue_entry.status = 'verified'
-            revenue_entry.verified_by_id = verified_by_id
-            revenue_entry.verified_at = timezone.now()
-            revenue_entry.save()
-            
-            logger.info(f"Revenue entry verified: {revenue_entry_id}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error verifying revenue entry: {e}")
-            return False
-    
-    def get_campaign_revenue_summary(self, campaign_id: int) -> Dict:
-        """Get revenue summary for a campaign"""
-        try:
-            campaign = Campaign.objects.get(id=campaign_id)
-            
-            # Get total revenue
-            total_revenue = RevenueEntry.objects.filter(
-                campaign=campaign,
-                status__in=['verified', 'processed']
-            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-            
-            # Get revenue by source
-            revenue_by_source = RevenueEntry.objects.filter(
-                campaign=campaign,
-                status__in=['verified', 'processed']
-            ).values('source__name').annotate(
-                total=Sum('amount'),
-                count=Count('id')
-            )
-            
-            # Get recent revenue entries
-            recent_entries = RevenueEntry.objects.filter(
-                campaign=campaign
-            ).order_by('-revenue_date')[:10]
-            
-            return {
-                'campaign_id': campaign_id,
-                'campaign_title': campaign.title,
-                'total_revenue': total_revenue,
-                'revenue_by_source': list(revenue_by_source),
-                'recent_entries': [
-                    {
-                        'id': entry.id,
-                        'amount': entry.amount,
-                        'currency': entry.currency,
-                        'source': entry.source.name,
-                        'revenue_date': entry.revenue_date,
-                        'status': entry.status
-                    }
-                    for entry in recent_entries
-                ]
-            }
-            
-        except Exception as e:
-            logger.error(f"Error getting campaign revenue summary: {e}")
-            return {}
-    
-    def get_revenue_trends(self, campaign_id: int, days: int = 30) -> Dict:
-        """Get revenue trends for a campaign"""
+    def get_creator_analytics(self, creator, period_days: int = 30) -> Dict:
+        """Get comprehensive analytics for a creator"""
         try:
             end_date = timezone.now().date()
-            start_date = end_date - timedelta(days=days)
+            start_date = end_date - timedelta(days=period_days)
             
-            # Get daily revenue data
-            daily_revenue = RevenueEntry.objects.filter(
-                campaign_id=campaign_id,
+            # Get creator's campaigns
+            campaigns = CampaignModel.objects.filter(creator=creator)
+            
+            # Get revenue data for the period
+            revenue_entries = RevenueEntry.objects.filter(
+                campaign__in=campaigns,
                 revenue_date__range=[start_date, end_date],
                 status__in=['verified', 'processed']
-            ).extra(
-                select={'day': 'date(revenue_date)'}
-            ).values('day').annotate(
-                total=Sum('amount'),
-                count=Count('id')
-            ).order_by('day')
-            
-            # Get source breakdown
-            source_breakdown = RevenueEntry.objects.filter(
-                campaign_id=campaign_id,
-                revenue_date__range=[start_date, end_date],
-                status__in=['verified', 'processed']
-            ).values('source__name').annotate(
-                total=Sum('amount'),
-                percentage=F('total') * 100.0 / Sum('amount')
             )
             
+            # Calculate metrics
+            total_revenue = revenue_entries.aggregate(
+                total=Sum('amount')
+            )['total'] or Decimal('0')
+            
+            total_campaigns = campaigns.count()
+            active_campaigns = campaigns.filter(status='active').count()
+            completed_campaigns = campaigns.filter(status__in=['funded', 'completed']).count()
+            
+            # Get campaign performance data
+            campaign_metrics = []
+            for campaign in campaigns:
+                campaign_revenue = revenue_entries.filter(campaign=campaign).aggregate(
+                    total=Sum('amount')
+                )['total'] or Decimal('0')
+                
+                # Calculate ROI
+                roi = Decimal('0')
+                if campaign.funding_goal > 0:
+                    roi = (campaign_revenue / campaign.funding_goal) * 100
+                
+                campaign_metrics.append({
+                    'id': campaign.id,
+                    'title': campaign.title,
+                    'total_raised': float(campaign.current_funding),
+                    'total_revenue': float(campaign_revenue),
+                    'backer_count': campaign.backer_count,
+                    'view_count': getattr(campaign, 'view_count', 0),
+                    'like_count': getattr(campaign, 'like_count', 0),
+                    'share_count': getattr(campaign, 'share_count', 0),
+                    'roi': float(roi),
+                    'status': campaign.status
+                })
+            
+            # Generate revenue chart data
+            revenue_chart = self._generate_revenue_chart_data(revenue_entries, period_days)
+            
+            # Generate source breakdown
+            source_breakdown = self._generate_source_breakdown(revenue_entries)
+            
             return {
-                'daily_revenue': list(daily_revenue),
-                'source_breakdown': list(source_breakdown),
-                'period': {
-                    'start_date': start_date,
-                    'end_date': end_date,
-                    'days': days
+                'campaigns': campaign_metrics,
+                'revenueChart': revenue_chart,
+                'sourceBreakdown': source_breakdown,
+                'summary': {
+                    'total_revenue': float(total_revenue),
+                    'total_campaigns': total_campaigns,
+                    'active_campaigns': active_campaigns,
+                    'completed_campaigns': completed_campaigns,
+                    'average_roi': float(sum(c['roi'] for c in campaign_metrics) / max(len(campaign_metrics), 1))
                 }
             }
             
         except Exception as e:
-            logger.error(f"Error getting revenue trends: {e}")
-            return {}
-
-
-class RoyaltyDistributionService:
-    """Service for royalty distribution management"""
-    
-    def __init__(self):
-        self.royalty_contract = self._get_royalty_contract()
-    
-    def _get_royalty_contract(self) -> Optional[SmartContract]:
-        """Get the royalty distribution contract"""
-        try:
-            return SmartContract.objects.filter(
-                name='RoyaltyDistribution',
-                is_active=True
-            ).first()
-        except Exception as e:
-            logger.error(f"Error getting royalty contract: {e}")
-            return None
-    
-    def process_royalty_distribution(self, revenue_entry: RevenueEntry) -> RoyaltyDistribution:
-        """Process royalty distribution for a revenue entry"""
-        try:
-            campaign = revenue_entry.campaign
-            source = revenue_entry.source
-            
-            # Calculate distribution amounts
-            platform_amount = revenue_entry.amount * (source.platform_fee_percentage / 100)
-            creator_amount = revenue_entry.amount * (source.creator_fee_percentage / 100)
-            investor_amount = revenue_entry.amount * (source.investor_fee_percentage / 100)
-            
-            # Create distribution record
-            distribution = RoyaltyDistribution.objects.create(
-                campaign=campaign,
-                revenue_entry=revenue_entry,
-                distribution_date=timezone.now(),
-                creator_amount=creator_amount,
-                platform_amount=platform_amount,
-                total_investor_amount=investor_amount,
-                status='processing'
-            )
-            
-            # Process investor distributions
-            self._process_investor_distributions(distribution, campaign, investor_amount)
-            
-            # Update revenue entry status
-            revenue_entry.status = 'processed'
-            revenue_entry.save()
-            
-            # Update distribution status
-            distribution.status = 'completed'
-            distribution.save()
-            
-            # Update analytics
-            self._update_revenue_analytics(campaign)
-            
-            logger.info(f"Royalty distribution processed: {distribution.id}")
-            return distribution
-            
-        except Exception as e:
-            logger.error(f"Error processing royalty distribution: {e}")
-            if 'distribution' in locals():
-                distribution.status = 'failed'
-                distribution.error_message = str(e)
-                distribution.save()
-            raise
-    
-    def _process_investor_distributions(
-        self, 
-        distribution: RoyaltyDistribution, 
-        campaign: Campaign, 
-        total_investor_amount: Decimal
-    ) -> None:
-        """Process individual investor distributions"""
-        try:
-            # Get all NFTs for this campaign (this would need to be implemented)
-            # For now, we'll create a placeholder
-            nft_contributions = self._get_campaign_nft_contributions(campaign)
-            
-            if not nft_contributions:
-                logger.warning(f"No NFT contributions found for campaign {campaign.id}")
-                return
-            
-            total_contributions = sum(contrib['amount'] for contrib in nft_contributions)
-            
-            for nft_contrib in nft_contributions:
-                if total_contributions > 0:
-                    share_percentage = (nft_contrib['amount'] / total_contributions) * 100
-                    royalty_amount = total_investor_amount * (share_percentage / 100)
-                    
-                    InvestorRoyalty.objects.create(
-                        distribution=distribution,
-                        investor_id=nft_contrib['investor_id'],
-                        nft_id=nft_contrib['nft_id'],
-                        contribution_amount=nft_contrib['amount'],
-                        share_percentage=share_percentage,
-                        royalty_amount=royalty_amount,
-                        status='claimable'
-                    )
-            
-        except Exception as e:
-            logger.error(f"Error processing investor distributions: {e}")
-            raise
-    
-    def _get_campaign_nft_contributions(self, campaign: Campaign) -> List[Dict]:
-        """Get NFT contributions for a campaign"""
-        # This would need to be implemented to get actual NFT data
-        # For now, returning empty list
-        return []
-    
-    def claim_investor_royalty(self, royalty: InvestorRoyalty) -> str:
-        """Claim investor royalty on blockchain"""
-        try:
-            if not self.royalty_contract:
-                raise Exception("Royalty contract not available")
-            
-            # Get network and Web3 service
-            network = self.royalty_contract.network
-            web3_service = Web3Service(network)
-            contract_service = ContractService(self.royalty_contract, web3_service)
-            
-            # Call claim function on smart contract
-            tx_hash = contract_service.send_function(
-                'claimInvestorRoyalty',
-                royalty.distribution.id,
-                royalty.nft_id
-            )
-            
-            logger.info(f"Investor royalty claimed: {royalty.id}, TX: {tx_hash}")
-            return tx_hash
-            
-        except Exception as e:
-            logger.error(f"Error claiming investor royalty: {e}")
-            raise
-    
-    def _update_revenue_analytics(self, campaign: Campaign) -> None:
-        """Update revenue analytics for a campaign"""
-        try:
-            analytics, created = RevenueAnalytics.objects.get_or_create(campaign=campaign)
-            
-            # Calculate totals
-            total_revenue = RevenueEntry.objects.filter(
-                campaign=campaign,
-                status='processed'
-            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-            
-            total_creator_royalties = RoyaltyDistribution.objects.filter(
-                campaign=campaign,
-                status='completed'
-            ).aggregate(total=Sum('creator_amount'))['total'] or Decimal('0')
-            
-            total_platform_fees = RoyaltyDistribution.objects.filter(
-                campaign=campaign,
-                status='completed'
-            ).aggregate(total=Sum('platform_amount'))['total'] or Decimal('0')
-            
-            total_investor_royalties = RoyaltyDistribution.objects.filter(
-                campaign=campaign,
-                status='completed'
-            ).aggregate(total=Sum('total_investor_amount'))['total'] or Decimal('0')
-            
-            total_distributions = RoyaltyDistribution.objects.filter(
-                campaign=campaign,
-                status='completed'
-            ).count()
-            
-            last_distribution = RoyaltyDistribution.objects.filter(
-                campaign=campaign,
-                status='completed'
-            ).order_by('-distribution_date').first()
-            
-            # Update analytics
-            analytics.total_revenue = total_revenue
-            analytics.total_creator_royalties = total_creator_royalties
-            analytics.total_platform_fees = total_platform_fees
-            analytics.total_investor_royalties = total_investor_royalties
-            analytics.total_distributions = total_distributions
-            analytics.last_distribution_date = last_distribution.distribution_date if last_distribution else None
-            analytics.save()
-            
-        except Exception as e:
-            logger.error(f"Error updating revenue analytics: {e}")
-
-
-class AnalyticsService:
-    """Service for revenue analytics"""
-    
-    def get_revenue_summary(self, user) -> Dict:
-        """Get revenue summary for user's campaigns"""
-        try:
-            # Get campaigns where user is creator or backer
-            from payments.models import Transaction
-            backer_campaign_ids = Transaction.objects.filter(
-                user=user,
-                campaign__isnull=False
-            ).values_list('campaign_id', flat=True)
-            
-            campaigns = Campaign.objects.filter(
-                Q(creator=user) | Q(id__in=backer_campaign_ids)
-            ).distinct()
-            
-            # Calculate totals
-            total_revenue = RevenueEntry.objects.filter(
-                campaign__in=campaigns,
-                status='processed'
-            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-            
-            total_creator_royalties = RoyaltyDistribution.objects.filter(
-                campaign__in=campaigns,
-                campaign__creator=user,
-                status='completed'
-            ).aggregate(total=Sum('creator_amount'))['total'] or Decimal('0')
-            
-            total_platform_fees = RoyaltyDistribution.objects.filter(
-                campaign__in=campaigns,
-                status='completed'
-            ).aggregate(total=Sum('platform_amount'))['total'] or Decimal('0')
-            
-            total_investor_royalties = RoyaltyDistribution.objects.filter(
-                campaign__in=campaigns,
-                status='completed'
-            ).aggregate(total=Sum('total_investor_amount'))['total'] or Decimal('0')
-            
-            total_distributions = RoyaltyDistribution.objects.filter(
-                campaign__in=campaigns,
-                status='completed'
-            ).count()
-            
-            # Get pending royalties for investor
-            pending_royalties = InvestorRoyalty.objects.filter(
-                investor=user,
-                status='claimable'
-            ).aggregate(total=Sum('royalty_amount'))['total'] or Decimal('0')
-            
-            last_distribution = RoyaltyDistribution.objects.filter(
-                campaign__in=campaigns,
-                status='completed'
-            ).order_by('-distribution_date').first()
-            
-            return {
-                'total_revenue': total_revenue,
-                'total_creator_royalties': total_creator_royalties,
-                'total_platform_fees': total_platform_fees,
-                'total_investor_royalties': total_investor_royalties,
-                'total_distributions': total_distributions,
-                'pending_royalties': pending_royalties,
-                'last_distribution_date': last_distribution.distribution_date if last_distribution else None
-            }
-            
-        except Exception as e:
-            logger.error(f"Error getting revenue summary: {e}")
+            logger.error(f"Error getting creator analytics: {e}")
             return {}
     
-    def get_revenue_chart_data(self, user, days: int = 30) -> Dict:
-        """Get revenue chart data"""
+    def get_investor_portfolio(self, investor) -> Dict:
+        """Get comprehensive portfolio analytics for an investor"""
         try:
-            end_date = timezone.now().date()
-            start_date = end_date - timedelta(days=days)
+            # Get investor's royalty claims
+            royalty_claims = InvestorRoyalty.objects.filter(investor=investor)
             
-            from payments.models import Transaction
-            backer_campaign_ids = Transaction.objects.filter(
-                user=user,
-                campaign__isnull=False
-            ).values_list('campaign_id', flat=True)
-            
-            campaigns = Campaign.objects.filter(
-                Q(creator=user) | Q(id__in=backer_campaign_ids)
-            ).distinct()
-            
-            # Get daily revenue data
-            daily_data = RevenueEntry.objects.filter(
-                campaign__in=campaigns,
-                revenue_date__range=[start_date, end_date],
-                status='processed'
-            ).extra(
-                select={'day': 'date(revenue_date)'}
-            ).values('day').annotate(
-                revenue=Sum('amount'),
-                creator_royalties=Sum('amount') * F('source__creator_fee_percentage') / 100,
-                investor_royalties=Sum('amount') * F('source__investor_fee_percentage') / 100,
-                platform_fees=Sum('amount') * F('source__platform_fee_percentage') / 100
-            ).order_by('day')
-            
-            # Format data for charts
-            labels = []
-            revenue_data = []
-            creator_royalties_data = []
-            investor_royalties_data = []
-            platform_fees_data = []
-            
-            for item in daily_data:
-                labels.append(item['day'].strftime('%Y-%m-%d'))
-                revenue_data.append(float(item['revenue'] or 0))
-                creator_royalties_data.append(float(item['creator_royalties'] or 0))
-                investor_royalties_data.append(float(item['investor_royalties'] or 0))
-                platform_fees_data.append(float(item['platform_fees'] or 0))
-            
-            return {
-                'labels': labels,
-                'revenue_data': revenue_data,
-                'creator_royalties_data': creator_royalties_data,
-                'investor_royalties_data': investor_royalties_data,
-                'platform_fees_data': platform_fees_data
-            }
-            
-        except Exception as e:
-            logger.error(f"Error getting chart data: {e}")
-            return {}
-    
-    def get_investor_portfolio(self, user) -> Dict:
-        """Get investor portfolio summary"""
-        try:
-            # Get user's NFT contributions
-            user_royalties = InvestorRoyalty.objects.filter(investor=user)
-            
-            # Calculate totals
-            total_invested = user_royalties.aggregate(
+            # Calculate portfolio metrics
+            total_invested = royalty_claims.aggregate(
                 total=Sum('contribution_amount')
             )['total'] or Decimal('0')
             
-            total_royalties_earned = user_royalties.aggregate(
+            total_earned = royalty_claims.aggregate(
                 total=Sum('royalty_amount')
             )['total'] or Decimal('0')
             
-            total_royalties_claimable = user_royalties.filter(
+            claimable_royalties = royalty_claims.filter(
                 status='claimable'
-            ).aggregate(total=Sum('royalty_amount'))['total'] or Decimal('0')
+            ).aggregate(
+                total=Sum('royalty_amount')
+            )['total'] or Decimal('0')
             
-            total_royalties_claimed = user_royalties.filter(
+            claimed_royalties = royalty_claims.filter(
                 status='claimed'
-            ).aggregate(total=Sum('royalty_amount'))['total'] or Decimal('0')
+            ).aggregate(
+                total=Sum('royalty_amount')
+            )['total'] or Decimal('0')
             
-            # Calculate ROI
-            roi_percentage = 0
+            # Calculate overall ROI
+            overall_roi = Decimal('0')
             if total_invested > 0:
-                roi_percentage = (total_royalties_earned / total_invested) * 100
+                overall_roi = (total_earned / total_invested) * 100
             
-            # Get campaign counts
-            active_campaigns = Campaign.objects.filter(
-                backers=user,
-                status='active'
-            ).count()
+            # Get investment breakdown by campaign
+            investment_breakdown = []
+            for claim in royalty_claims:
+                distribution = claim.distribution
+                campaign = distribution.campaign
+                
+                investment_roi = Decimal('0')
+                if claim.contribution_amount > 0:
+                    investment_roi = (claim.royalty_amount / claim.contribution_amount) * 100
+                
+                investment_breakdown.append({
+                    'campaign_id': campaign.id,
+                    'campaign_title': campaign.title,
+                    'nft_id': claim.nft_id,
+                    'contribution_amount': float(claim.contribution_amount),
+                    'royalty_earned': float(claim.royalty_amount),
+                    'roi_percentage': float(investment_roi),
+                    'status': claim.status,
+                    'investment_date': claim.created_at.isoformat()
+                })
             
-            completed_campaigns = Campaign.objects.filter(
-                backers=user,
-                status__in=['funded', 'completed']
-            ).count()
-            
-            total_nfts = user_royalties.values('nft_id').distinct().count()
+            # Generate royalty trends
+            royalty_trends = self._generate_royalty_trends(royalty_claims)
             
             return {
-                'total_invested': total_invested,
-                'total_royalties_earned': total_royalties_earned,
-                'total_royalties_claimable': total_royalties_claimable,
-                'total_royalties_claimed': total_royalties_claimed,
-                'roi_percentage': roi_percentage,
-                'active_campaigns': active_campaigns,
-                'completed_campaigns': completed_campaigns,
-                'total_nfts': total_nfts
+                'total_invested': float(total_invested),
+                'total_earned': float(total_earned),
+                'claimable_royalties': float(claimable_royalties),
+                'claimed_royalties': float(claimed_royalties),
+                'overall_roi': float(overall_roi),
+                'investment_count': royalty_claims.count(),
+                'investment_breakdown': investment_breakdown,
+                'royalty_trends': royalty_trends
             }
             
         except Exception as e:
             logger.error(f"Error getting investor portfolio: {e}")
             return {}
     
-    def get_claimable_royalties(self, user) -> Decimal:
-        """Get total claimable royalties for user"""
+    def get_revenue_summary(self, campaign_id: int = None, period_days: int = 30) -> Dict:
+        """Get revenue summary for a campaign or all campaigns"""
         try:
-            return InvestorRoyalty.objects.filter(
-                investor=user,
-                status='claimable'
-            ).aggregate(total=Sum('royalty_amount'))['total'] or Decimal('0')
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=period_days)
+            
+            # Filter by campaign if specified
+            filter_kwargs = {
+                'revenue_date__range': [start_date, end_date],
+                'status__in': ['verified', 'processed']
+            }
+            
+            if campaign_id:
+                filter_kwargs['campaign_id'] = campaign_id
+            
+            revenue_entries = RevenueEntry.objects.filter(**filter_kwargs)
+            
+            # Calculate totals
+            total_revenue = revenue_entries.aggregate(
+                total=Sum('amount')
+            )['total'] or Decimal('0')
+            
+            # Revenue by source
+            revenue_by_source = revenue_entries.values('source__name').annotate(
+                total=Sum('amount'),
+                count=Count('id')
+            ).order_by('-total')
+            
+            # Revenue by campaign
+            revenue_by_campaign = revenue_entries.values(
+                'campaign__title', 'campaign__id'
+            ).annotate(
+                total=Sum('amount'),
+                count=Count('id')
+            ).order_by('-total')
+            
+            # Daily revenue trend
+            daily_revenue = []
+            for i in range(period_days):
+                date = start_date + timedelta(days=i)
+                day_revenue = revenue_entries.filter(
+                    revenue_date=date
+                ).aggregate(
+                    total=Sum('amount')
+                )['total'] or Decimal('0')
+                
+                daily_revenue.append({
+                    'date': date.isoformat(),
+                    'revenue': float(day_revenue)
+                })
+            
+            return {
+                'total_revenue': float(total_revenue),
+                'period': {
+                    'start_date': start_date.isoformat(),
+                    'end_date': end_date.isoformat(),
+                    'days': period_days
+                },
+                'revenue_by_source': list(revenue_by_source),
+                'revenue_by_campaign': list(revenue_by_campaign),
+                'daily_revenue': daily_revenue
+            }
+            
         except Exception as e:
-            logger.error(f"Error getting claimable royalties: {e}")
-            return Decimal('0')
+            logger.error(f"Error getting revenue summary: {e}")
+            return {}
+    
+    def _generate_revenue_chart_data(self, revenue_entries, period_days: int) -> Dict:
+        """Generate chart data for revenue visualization"""
+        try:
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=period_days)
+            
+            # Generate daily data
+            labels = []
+            revenue_data = []
+            creator_royalties = []
+            investor_royalties = []
+            platform_fees = []
+            
+            for i in range(period_days):
+                date = start_date + timedelta(days=i)
+                labels.append(date.strftime('%Y-%m-%d'))
+                
+                day_entries = revenue_entries.filter(revenue_date=date)
+                day_revenue = day_entries.aggregate(
+                    total=Sum('amount')
+                )['total'] or Decimal('0')
+                
+                # Calculate distribution (simplified)
+                creator_amount = day_revenue * Decimal('0.30')
+                platform_amount = day_revenue * Decimal('0.05')
+                investor_amount = day_revenue * Decimal('0.65')
+                
+                revenue_data.append(float(day_revenue))
+                creator_royalties.append(float(creator_amount))
+                investor_royalties.append(float(investor_amount))
+                platform_fees.append(float(platform_amount))
+            
+            return {
+                'labels': labels,
+                'revenue': revenue_data,
+                'creatorRoyalties': creator_royalties,
+                'investorRoyalties': investor_royalties,
+                'platformFees': platform_fees
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generating revenue chart data: {e}")
+            return {'labels': [], 'revenue': [], 'creatorRoyalties': [], 'investorRoyalties': [], 'platformFees': []}
+    
+    def _generate_source_breakdown(self, revenue_entries) -> List[Dict]:
+        """Generate revenue source breakdown data"""
+        try:
+            source_data = revenue_entries.values('source__name').annotate(
+                amount=Sum('amount'),
+                count=Count('id')
+            ).order_by('-amount')
+            
+            total_amount = sum(item['amount'] for item in source_data)
+            
+            breakdown = []
+            for item in source_data:
+                percentage = 0
+                if total_amount > 0:
+                    percentage = (item['amount'] / total_amount) * 100
+                
+                breakdown.append({
+                    'source': item['source__name'],
+                    'amount': float(item['amount']),
+                    'percentage': float(percentage),
+                    'count': item['count']
+                })
+            
+            return breakdown
+            
+        except Exception as e:
+            logger.error(f"Error generating source breakdown: {e}")
+            return []
+    
+    def _generate_royalty_trends(self, royalty_claims) -> Dict:
+        """Generate royalty trends for investor portfolio"""
+        try:
+            # Get last 30 days of royalty data
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=30)
+            
+            labels = []
+            royalty_data = []
+            cumulative_data = []
+            
+            cumulative_total = Decimal('0')
+            
+            for i in range(30):
+                date = start_date + timedelta(days=i)
+                labels.append(date.strftime('%Y-%m-%d'))
+                
+                # Get royalties for this date
+                day_royalties = royalty_claims.filter(
+                    distribution__distribution_date__date=date
+                ).aggregate(
+                    total=Sum('royalty_amount')
+                )['total'] or Decimal('0')
+                
+                cumulative_total += day_royalties
+                
+                royalty_data.append(float(day_royalties))
+                cumulative_data.append(float(cumulative_total))
+            
+            return {
+                'labels': labels,
+                'royalty_data': royalty_data,
+                'cumulative_data': cumulative_data
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generating royalty trends: {e}")
+            return {'labels': [], 'royalty_data': [], 'cumulative_data': []}
+    
+    def update_campaign_analytics(self, campaign_id: int) -> bool:
+        """Update analytics data for a specific campaign"""
+        try:
+            campaign = CampaignModel.objects.get(id=campaign_id)
+            
+            # Get or create analytics record
+            analytics, created = RevenueAnalytics.objects.get_or_create(
+                campaign=campaign,
+                defaults={
+                    'total_revenue': Decimal('0'),
+                    'total_creator_royalties': Decimal('0'),
+                    'total_platform_fees': Decimal('0'),
+                    'total_investor_royalties': Decimal('0'),
+                    'total_distributions': 0
+                }
+            )
+            
+            # Calculate current totals
+            revenue_entries = RevenueEntry.objects.filter(
+                campaign=campaign,
+                status__in=['verified', 'processed']
+            )
+            
+            total_revenue = revenue_entries.aggregate(
+                total=Sum('amount')
+            )['total'] or Decimal('0')
+            
+            # Calculate distributions
+            distributions = RoyaltyDistribution.objects.filter(campaign=campaign)
+            
+            total_creator_royalties = distributions.aggregate(
+                total=Sum('creator_amount')
+            )['total'] or Decimal('0')
+            
+            total_platform_fees = distributions.aggregate(
+                total=Sum('platform_amount')
+            )['total'] or Decimal('0')
+            
+            total_investor_royalties = distributions.aggregate(
+                total=Sum('total_investor_amount')
+            )['total'] or Decimal('0')
+            
+            # Update analytics
+            analytics.total_revenue = total_revenue
+            analytics.total_creator_royalties = total_creator_royalties
+            analytics.total_platform_fees = total_platform_fees
+            analytics.total_investor_royalties = total_investor_royalties
+            analytics.total_distributions = distributions.count()
+            
+            if distributions.exists():
+                analytics.last_distribution_date = distributions.order_by(
+                    '-distribution_date'
+                ).first().distribution_date
+            
+            analytics.save()
+            
+            logger.info(f"Analytics updated for campaign {campaign_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error updating campaign analytics: {e}")
+            return False

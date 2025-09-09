@@ -1,29 +1,32 @@
 import logging
 import requests
 import json
+from decimal import Decimal
 from typing import Dict, List, Optional, Any
-from django.conf import settings
 from django.utils import timezone
 from datetime import datetime, timedelta
-from decimal import Decimal
 from .models import (
-    OTTPlatformIntegration, RevenueWebhook, RevenueEntry, 
+    OTTPlatformIntegration, RevenueEntry, RevenueWebhook, 
     RevenueSource, Campaign
 )
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 
 class OTTIntegrationService:
-    """Service for OTT platform revenue integration"""
+    """Service for OTT platform integrations"""
     
     def __init__(self):
         self.platforms = OTTPlatformIntegration.objects.filter(is_active=True)
     
-    def process_webhook(self, platform_id: int, payload: Dict[str, Any]) -> bool:
-        """Process incoming webhook from OTT platform"""
+    def process_webhook(self, platform_name: str, payload: Dict) -> bool:
+        """Process webhook from OTT platform"""
         try:
-            platform = OTTPlatformIntegration.objects.get(id=platform_id)
+            platform = self.platforms.filter(name=platform_name).first()
+            if not platform:
+                logger.error(f"Platform not found: {platform_name}")
+                return False
             
             # Create webhook record
             webhook = RevenueWebhook.objects.create(
@@ -47,8 +50,8 @@ class OTTIntegrationService:
             logger.error(f"Error processing webhook: {e}")
             return False
     
-    def _process_netflix_webhook(self, webhook: RevenueWebhook, payload: Dict[str, Any]) -> bool:
-        """Process Netflix revenue webhook"""
+    def _process_netflix_webhook(self, webhook: RevenueWebhook, payload: Dict) -> bool:
+        """Process Netflix webhook"""
         try:
             # Extract revenue data from Netflix payload
             revenue_data = payload.get('revenue_data', {})
@@ -56,7 +59,7 @@ class OTTIntegrationService:
             
             if not campaign_id or not revenue_data:
                 webhook.status = 'failed'
-                webhook.response_message = 'Missing campaign_id or revenue_data'
+                webhook.response_message = "Missing campaign_id or revenue_data"
                 webhook.save()
                 return False
             
@@ -65,30 +68,30 @@ class OTTIntegrationService:
                 name='Netflix',
                 revenue_type='ott_platform',
                 defaults={
-                    'token_address': settings.USDT_CONTRACT_ADDRESS,
+                    'description': 'Netflix streaming revenue',
                     'platform_fee_percentage': Decimal('5.00'),
                     'creator_fee_percentage': Decimal('30.00'),
                     'investor_fee_percentage': Decimal('65.00'),
-                    'is_active': True
                 }
             )
             
-            # Create revenue entry
-            revenue_entry = RevenueEntry.objects.create(
-                campaign_id=campaign_id,
-                source=source,
-                amount=Decimal(str(revenue_data.get('amount', 0))),
-                currency=revenue_data.get('currency', 'USDT'),
-                description=f"Netflix streaming revenue - {revenue_data.get('period', 'Unknown period')}",
-                revenue_date=datetime.fromisoformat(revenue_data.get('date', timezone.now().isoformat())).date(),
-                status='verified'  # Netflix data is considered verified
-            )
+            # Create revenue entries
+            for entry_data in revenue_data.get('entries', []):
+                RevenueEntry.objects.create(
+                    campaign_id=campaign_id,
+                    source=source,
+                    amount=Decimal(str(entry_data.get('amount', 0))),
+                    currency=entry_data.get('currency', 'USDT'),
+                    description=f"Netflix revenue - {entry_data.get('title', 'Unknown')}",
+                    revenue_date=datetime.fromisoformat(entry_data.get('date', timezone.now().isoformat())),
+                    status='verified'  # Netflix data is pre-verified
+                )
             
             webhook.status = 'processed'
             webhook.processed_at = timezone.now()
             webhook.save()
             
-            logger.info(f"Netflix webhook processed successfully: {webhook.id}")
+            logger.info(f"Netflix webhook processed: {webhook.id}")
             return True
             
         except Exception as e:
@@ -98,47 +101,47 @@ class OTTIntegrationService:
             webhook.save()
             return False
     
-    def _process_amazon_prime_webhook(self, webhook: RevenueWebhook, payload: Dict[str, Any]) -> bool:
-        """Process Amazon Prime revenue webhook"""
+    def _process_amazon_prime_webhook(self, webhook: RevenueWebhook, payload: Dict) -> bool:
+        """Process Amazon Prime webhook"""
         try:
             revenue_data = payload.get('revenue_data', {})
             campaign_id = payload.get('campaign_id')
             
             if not campaign_id or not revenue_data:
                 webhook.status = 'failed'
-                webhook.response_message = 'Missing campaign_id or revenue_data'
+                webhook.response_message = "Missing campaign_id or revenue_data"
                 webhook.save()
                 return False
             
             # Get or create Amazon Prime revenue source
             source, created = RevenueSource.objects.get_or_create(
-                name='Amazon Prime Video',
+                name='Amazon Prime',
                 revenue_type='ott_platform',
                 defaults={
-                    'token_address': settings.USDT_CONTRACT_ADDRESS,
-                    'platform_fee_percentage': Decimal('5.00'),
+                    'description': 'Amazon Prime Video revenue',
+                    'platform_fee_percentage': Decimal('4.50'),
                     'creator_fee_percentage': Decimal('30.00'),
-                    'investor_fee_percentage': Decimal('65.00'),
-                    'is_active': True
+                    'investor_fee_percentage': Decimal('65.50'),
                 }
             )
             
-            # Create revenue entry
-            revenue_entry = RevenueEntry.objects.create(
-                campaign_id=campaign_id,
-                source=source,
-                amount=Decimal(str(revenue_data.get('amount', 0))),
-                currency=revenue_data.get('currency', 'USDT'),
-                description=f"Amazon Prime Video revenue - {revenue_data.get('period', 'Unknown period')}",
-                revenue_date=datetime.fromisoformat(revenue_data.get('date', timezone.now().isoformat())).date(),
-                status='verified'
-            )
+            # Create revenue entries
+            for entry_data in revenue_data.get('entries', []):
+                RevenueEntry.objects.create(
+                    campaign_id=campaign_id,
+                    source=source,
+                    amount=Decimal(str(entry_data.get('amount', 0))),
+                    currency=entry_data.get('currency', 'USDT'),
+                    description=f"Amazon Prime revenue - {entry_data.get('title', 'Unknown')}",
+                    revenue_date=datetime.fromisoformat(entry_data.get('date', timezone.now().isoformat())),
+                    status='verified'
+                )
             
             webhook.status = 'processed'
             webhook.processed_at = timezone.now()
             webhook.save()
             
-            logger.info(f"Amazon Prime webhook processed successfully: {webhook.id}")
+            logger.info(f"Amazon Prime webhook processed: {webhook.id}")
             return True
             
         except Exception as e:
@@ -148,15 +151,15 @@ class OTTIntegrationService:
             webhook.save()
             return False
     
-    def _process_disney_plus_webhook(self, webhook: RevenueWebhook, payload: Dict[str, Any]) -> bool:
-        """Process Disney+ revenue webhook"""
+    def _process_disney_plus_webhook(self, webhook: RevenueWebhook, payload: Dict) -> bool:
+        """Process Disney+ webhook"""
         try:
             revenue_data = payload.get('revenue_data', {})
             campaign_id = payload.get('campaign_id')
             
             if not campaign_id or not revenue_data:
                 webhook.status = 'failed'
-                webhook.response_message = 'Missing campaign_id or revenue_data'
+                webhook.response_message = "Missing campaign_id or revenue_data"
                 webhook.save()
                 return False
             
@@ -165,30 +168,30 @@ class OTTIntegrationService:
                 name='Disney+',
                 revenue_type='ott_platform',
                 defaults={
-                    'token_address': settings.USDT_CONTRACT_ADDRESS,
-                    'platform_fee_percentage': Decimal('5.00'),
+                    'description': 'Disney+ streaming revenue',
+                    'platform_fee_percentage': Decimal('6.00'),
                     'creator_fee_percentage': Decimal('30.00'),
-                    'investor_fee_percentage': Decimal('65.00'),
-                    'is_active': True
+                    'investor_fee_percentage': Decimal('64.00'),
                 }
             )
             
-            # Create revenue entry
-            revenue_entry = RevenueEntry.objects.create(
-                campaign_id=campaign_id,
-                source=source,
-                amount=Decimal(str(revenue_data.get('amount', 0))),
-                currency=revenue_data.get('currency', 'USDT'),
-                description=f"Disney+ streaming revenue - {revenue_data.get('period', 'Unknown period')}",
-                revenue_date=datetime.fromisoformat(revenue_data.get('date', timezone.now().isoformat())).date(),
-                status='verified'
-            )
+            # Create revenue entries
+            for entry_data in revenue_data.get('entries', []):
+                RevenueEntry.objects.create(
+                    campaign_id=campaign_id,
+                    source=source,
+                    amount=Decimal(str(entry_data.get('amount', 0))),
+                    currency=entry_data.get('currency', 'USDT'),
+                    description=f"Disney+ revenue - {entry_data.get('title', 'Unknown')}",
+                    revenue_date=datetime.fromisoformat(entry_data.get('date', timezone.now().isoformat())),
+                    status='verified'
+                )
             
             webhook.status = 'processed'
             webhook.processed_at = timezone.now()
             webhook.save()
             
-            logger.info(f"Disney+ webhook processed successfully: {webhook.id}")
+            logger.info(f"Disney+ webhook processed: {webhook.id}")
             return True
             
         except Exception as e:
@@ -198,8 +201,8 @@ class OTTIntegrationService:
             webhook.save()
             return False
     
-    def _process_generic_webhook(self, webhook: RevenueWebhook, payload: Dict[str, Any]) -> bool:
-        """Process generic OTT platform webhook"""
+    def _process_generic_webhook(self, webhook: RevenueWebhook, payload: Dict) -> bool:
+        """Process generic OTT webhook"""
         try:
             revenue_data = payload.get('revenue_data', {})
             campaign_id = payload.get('campaign_id')
@@ -207,7 +210,7 @@ class OTTIntegrationService:
             
             if not campaign_id or not revenue_data:
                 webhook.status = 'failed'
-                webhook.response_message = 'Missing campaign_id or revenue_data'
+                webhook.response_message = "Missing campaign_id or revenue_data"
                 webhook.save()
                 return False
             
@@ -216,30 +219,30 @@ class OTTIntegrationService:
                 name=platform_name,
                 revenue_type='ott_platform',
                 defaults={
-                    'token_address': settings.USDT_CONTRACT_ADDRESS,
+                    'description': f'{platform_name} streaming revenue',
                     'platform_fee_percentage': Decimal('5.00'),
                     'creator_fee_percentage': Decimal('30.00'),
                     'investor_fee_percentage': Decimal('65.00'),
-                    'is_active': True
                 }
             )
             
-            # Create revenue entry
-            revenue_entry = RevenueEntry.objects.create(
-                campaign_id=campaign_id,
-                source=source,
-                amount=Decimal(str(revenue_data.get('amount', 0))),
-                currency=revenue_data.get('currency', 'USDT'),
-                description=f"{platform_name} revenue - {revenue_data.get('period', 'Unknown period')}",
-                revenue_date=datetime.fromisoformat(revenue_data.get('date', timezone.now().isoformat())).date(),
-                status='verified'
-            )
+            # Create revenue entries
+            for entry_data in revenue_data.get('entries', []):
+                RevenueEntry.objects.create(
+                    campaign_id=campaign_id,
+                    source=source,
+                    amount=Decimal(str(entry_data.get('amount', 0))),
+                    currency=entry_data.get('currency', 'USDT'),
+                    description=f"{platform_name} revenue - {entry_data.get('title', 'Unknown')}",
+                    revenue_date=datetime.fromisoformat(entry_data.get('date', timezone.now().isoformat())),
+                    status='pending'  # Generic webhooks need verification
+                )
             
             webhook.status = 'processed'
             webhook.processed_at = timezone.now()
             webhook.save()
             
-            logger.info(f"Generic webhook processed successfully: {webhook.id}")
+            logger.info(f"Generic webhook processed: {webhook.id}")
             return True
             
         except Exception as e:
@@ -249,73 +252,145 @@ class OTTIntegrationService:
             webhook.save()
             return False
     
-    def sync_revenue_data(self, platform_id: int, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+    def sync_revenue_data(self, platform_name: str, campaign_id: int) -> bool:
         """Sync revenue data from OTT platform API"""
         try:
-            platform = OTTPlatformIntegration.objects.get(id=platform_id)
+            platform = self.platforms.filter(name=platform_name).first()
+            if not platform or not platform.api_endpoint:
+                logger.error(f"Platform not found or no API endpoint: {platform_name}")
+                return False
             
-            # This would integrate with actual OTT platform APIs
-            # For now, we'll return a mock response
-            return {
-                'status': 'success',
-                'platform': platform.name,
-                'period': {
-                    'start_date': start_date.isoformat(),
-                    'end_date': end_date.isoformat()
-                },
-                'revenue_entries_created': 0,
-                'total_revenue': 0
+            # Make API request to platform
+            headers = {
+                'Authorization': f'Bearer {platform.api_key}',
+                'Content-Type': 'application/json'
             }
+            
+            params = {
+                'campaign_id': campaign_id,
+                'start_date': (timezone.now() - timedelta(days=30)).isoformat(),
+                'end_date': timezone.now().isoformat()
+            }
+            
+            response = requests.get(
+                platform.api_endpoint,
+                headers=headers,
+                params=params,
+                timeout=30
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"API request failed: {response.status_code}")
+                return False
+            
+            data = response.json()
+            
+            # Process the response as webhook
+            webhook_payload = {
+                'campaign_id': campaign_id,
+                'revenue_data': data.get('revenue_data', [])
+            }
+            
+            return self.process_webhook(platform_name, webhook_payload)
             
         except Exception as e:
             logger.error(f"Error syncing revenue data: {e}")
-            return {
-                'status': 'error',
-                'error': str(e)
-            }
+            return False
     
-    def get_platform_revenue_summary(self, platform_id: int, days: int = 30) -> Dict[str, Any]:
-        """Get revenue summary for a specific platform"""
+    def get_platform_revenue_summary(self, platform_name: str, days: int = 30) -> Dict:
+        """Get revenue summary for a platform"""
         try:
-            platform = OTTPlatformIntegration.objects.get(id=platform_id)
+            platform = self.platforms.filter(name=platform_name).first()
+            if not platform:
+                return {}
+            
             end_date = timezone.now().date()
             start_date = end_date - timedelta(days=days)
             
             # Get revenue entries for this platform
             revenue_entries = RevenueEntry.objects.filter(
-                source__name=platform.name,
+                source__name=platform_name,
                 revenue_date__range=[start_date, end_date],
                 status__in=['verified', 'processed']
             )
             
-            total_revenue = sum(entry.amount for entry in revenue_entries)
-            entry_count = revenue_entries.count()
+            total_revenue = revenue_entries.aggregate(
+                total=models.Sum('amount')
+            )['total'] or Decimal('0')
             
-            # Get campaigns with revenue from this platform
-            campaigns = Campaign.objects.filter(
-                revenue_entries__source__name=platform.name,
-                revenue_entries__revenue_date__range=[start_date, end_date]
-            ).distinct()
+            total_entries = revenue_entries.count()
+            
+            # Get campaign breakdown
+            campaign_breakdown = revenue_entries.values('campaign__title').annotate(
+                total=Sum('amount'),
+                count=Count('id')
+            ).order_by('-total')
             
             return {
-                'platform_name': platform.name,
+                'platform_name': platform_name,
+                'total_revenue': total_revenue,
+                'total_entries': total_entries,
                 'period': {
-                    'start_date': start_date.isoformat(),
-                    'end_date': end_date.isoformat(),
+                    'start_date': start_date,
+                    'end_date': end_date,
                     'days': days
                 },
-                'total_revenue': float(total_revenue),
-                'entry_count': entry_count,
-                'campaign_count': campaigns.count(),
-                'average_revenue_per_entry': float(total_revenue / entry_count) if entry_count > 0 else 0
+                'campaign_breakdown': list(campaign_breakdown)
             }
             
         except Exception as e:
             logger.error(f"Error getting platform revenue summary: {e}")
-            return {
-                'status': 'error',
-                'error': str(e)
+            return {}
+    
+    def create_platform_integration(
+        self,
+        name: str,
+        platform_type: str,
+        api_endpoint: str = None,
+        api_key: str = None,
+        webhook_url: str = None
+    ) -> OTTPlatformIntegration:
+        """Create a new OTT platform integration"""
+        try:
+            platform = OTTPlatformIntegration.objects.create(
+                name=name,
+                platform_type=platform_type,
+                api_endpoint=api_endpoint,
+                api_key=api_key,
+                webhook_url=webhook_url
+            )
+            
+            logger.info(f"Platform integration created: {platform.id}")
+            return platform
+            
+        except Exception as e:
+            logger.error(f"Error creating platform integration: {e}")
+            raise
+    
+    def test_platform_connection(self, platform_id: int) -> bool:
+        """Test connection to OTT platform"""
+        try:
+            platform = OTTPlatformIntegration.objects.get(id=platform_id)
+            
+            if not platform.api_endpoint or not platform.api_key:
+                return False
+            
+            headers = {
+                'Authorization': f'Bearer {platform.api_key}',
+                'Content-Type': 'application/json'
             }
+            
+            response = requests.get(
+                f"{platform.api_endpoint}/test",
+                headers=headers,
+                timeout=10
+            )
+            
+            return response.status_code == 200
+            
+        except Exception as e:
+            logger.error(f"Error testing platform connection: {e}")
+            return False
 
 
 class BoxOfficeIntegrationService:
@@ -330,16 +405,15 @@ class BoxOfficeIntegrationService:
             name='Box Office',
             revenue_type='box_office',
             defaults={
-                'token_address': settings.USDT_CONTRACT_ADDRESS,
-                'platform_fee_percentage': Decimal('5.00'),
-                'creator_fee_percentage': Decimal('30.00'),
-                'investor_fee_percentage': Decimal('65.00'),
-                'is_active': True
+                'description': 'Box office ticket sales revenue',
+                'platform_fee_percentage': Decimal('3.00'),
+                'creator_fee_percentage': Decimal('35.00'),
+                'investor_fee_percentage': Decimal('62.00'),
             }
         )
         return source
     
-    def record_box_office_revenue(
+    def add_box_office_revenue(
         self,
         campaign_id: int,
         amount: Decimal,
@@ -348,7 +422,7 @@ class BoxOfficeIntegrationService:
         revenue_date: datetime,
         verification_document=None
     ) -> RevenueEntry:
-        """Record box office revenue"""
+        """Add box office revenue entry"""
         try:
             revenue_entry = RevenueEntry.objects.create(
                 campaign_id=campaign_id,
@@ -356,54 +430,40 @@ class BoxOfficeIntegrationService:
                 amount=amount,
                 currency=currency,
                 description=description,
-                revenue_date=revenue_date.date(),
+                revenue_date=revenue_date,
                 verification_document=verification_document,
-                status='pending'  # Box office revenue needs verification
+                status='pending'
             )
             
-            logger.info(f"Box office revenue recorded: {revenue_entry.id}")
+            logger.info(f"Box office revenue added: {revenue_entry.id}")
             return revenue_entry
             
         except Exception as e:
-            logger.error(f"Error recording box office revenue: {e}")
+            logger.error(f"Error adding box office revenue: {e}")
             raise
     
-    def get_box_office_summary(self, campaign_id: int) -> Dict[str, Any]:
-        """Get box office revenue summary for a campaign"""
+    def sync_cinema_revenue(self, campaign_id: int, cinema_data: List[Dict]) -> bool:
+        """Sync revenue from multiple cinemas"""
         try:
-            campaign = Campaign.objects.get(id=campaign_id)
+            total_revenue = Decimal('0')
             
-            # Get box office revenue entries
-            revenue_entries = RevenueEntry.objects.filter(
-                campaign=campaign,
-                source=self.box_office_source,
-                status__in=['verified', 'processed']
-            )
+            for cinema in cinema_data:
+                amount = Decimal(str(cinema.get('revenue', 0)))
+                total_revenue += amount
+                
+                RevenueEntry.objects.create(
+                    campaign_id=campaign_id,
+                    source=self.box_office_source,
+                    amount=amount,
+                    currency=cinema.get('currency', 'LKR'),
+                    description=f"Box office revenue - {cinema.get('cinema_name', 'Unknown Cinema')}",
+                    revenue_date=datetime.fromisoformat(cinema.get('date', timezone.now().isoformat())),
+                    status='pending'
+                )
             
-            total_revenue = sum(entry.amount for entry in revenue_entries)
-            entry_count = revenue_entries.count()
-            
-            # Get daily breakdown
-            daily_revenue = {}
-            for entry in revenue_entries:
-                date_str = entry.revenue_date.isoformat()
-                if date_str in daily_revenue:
-                    daily_revenue[date_str] += float(entry.amount)
-                else:
-                    daily_revenue[date_str] = float(entry.amount)
-            
-            return {
-                'campaign_id': campaign_id,
-                'campaign_title': campaign.title,
-                'total_revenue': float(total_revenue),
-                'entry_count': entry_count,
-                'daily_revenue': daily_revenue,
-                'average_daily_revenue': float(total_revenue / len(daily_revenue)) if daily_revenue else 0
-            }
+            logger.info(f"Synced cinema revenue for campaign {campaign_id}: {total_revenue}")
+            return True
             
         except Exception as e:
-            logger.error(f"Error getting box office summary: {e}")
-            return {
-                'status': 'error',
-                'error': str(e)
-            }
+            logger.error(f"Error syncing cinema revenue: {e}")
+            return False

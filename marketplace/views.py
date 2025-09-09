@@ -9,9 +9,11 @@ from .models import (
     NFTListing, NFTBid, NFTSale, NFTLike, NFTView, MarketplaceSettings
 )
 from .serializers import (
-    NFTListingSerializer, NFTListingCreateSerializer, NFTListingDetailSerializer,
-    NFTBidSerializer, NFTBidCreateSerializer, NFTSaleSerializer,
+    NFTListingSerializer, NFTBidSerializer, NFTSaleSerializer,
     NFTLikeSerializer, NFTViewSerializer, MarketplaceSettingsSerializer
+)
+from .additional_serializers import (
+    NFTListingCreateSerializer, NFTListingDetailSerializer, NFTBidCreateSerializer
 )
 from .services import MarketplaceService
 
