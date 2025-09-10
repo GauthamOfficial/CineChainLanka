@@ -57,6 +57,9 @@ const Profile: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
   const { profile, isLoading, error } = useAppSelector((state) => state.user);
   
+  // Debug logging
+  console.log('Profile component rendered', { user, profile, isLoading, error });
+  
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     first_name: '',
@@ -251,6 +254,27 @@ const Profile: React.FC = () => {
   const hasProfileData = (user: any): user is UserProfile => {
     return user && 'profile_picture' in user && 'kyc_status' in user;
   };
+
+  // Debug: Show if no user data is available
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+            <div className="flex">
+              <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" />
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-yellow-800">No User Data</h3>
+                <div className="mt-2 text-sm text-yellow-700">
+                  User profile data is not available. Please check authentication status.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

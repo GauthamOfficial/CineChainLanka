@@ -14,7 +14,7 @@ import Dashboard from './pages/Dashboard';
 import Campaigns from './pages/Campaigns';
 import CampaignDetail from './pages/CampaignDetail';
 import CreateCampaign from './pages/CreateCampaign';
-import Profile from './pages/Profile';
+import Profile from './pages/ProfileTest';
 import KYC from './pages/KYC';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Analytics from './pages/Analytics';
