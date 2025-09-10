@@ -208,11 +208,22 @@ const NFTMarketplace: React.FC = () => {
   };
 
   const formatPrice = (price: number, currency: string = 'USDT') => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0,
-    }).format(price);
+    // Handle USDT and other non-standard currency codes
+    if (currency === 'USDT') {
+      return `$${price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} USDT`;
+    }
+    
+    // For valid ISO currency codes, use Intl.NumberFormat
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currency,
+        minimumFractionDigits: 0,
+      }).format(price);
+    } catch (error) {
+      // Fallback for invalid currency codes
+      return `${price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${currency}`;
+    }
   };
 
   const formatDate = (dateString: string) => {
