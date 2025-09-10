@@ -62,10 +62,10 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
 
   if (isLoading) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-2">
         {[...Array(3)].map((_, index) => (
           <div key={index} className="animate-pulse">
-            <div className="h-16 bg-gray-200 rounded-lg"></div>
+            <div className="h-12 bg-gray-200 rounded-lg"></div>
           </div>
         ))}
       </div>
@@ -76,12 +76,12 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   const methods = Array.isArray(paymentMethods) ? paymentMethods : [];
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Select Payment Method</h3>
+    <div className="space-y-1.5">
+      <h3 className="text-sm font-medium text-gray-900 mb-2">Select Payment Method</h3>
       {methods.length === 0 ? (
-        <div className="text-center py-8">
-          <BanknotesIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">No payment methods available</p>
+        <div className="text-center py-4">
+          <BanknotesIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+          <p className="text-gray-500 text-sm">No payment methods available</p>
         </div>
       ) : (
         methods
@@ -90,35 +90,35 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
             <div
               key={method.id}
               onClick={() => onMethodSelect(method.id, method.payment_type)}
-              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+              className={`p-2.5 border-2 rounded-lg cursor-pointer transition-all ${
                 selectedMethod === method.id
                   ? 'border-primary-500 bg-primary-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
               <div className="flex items-center">
-                <div className={`p-2 rounded-lg mr-4 ${
+                <div className={`p-1 rounded-lg mr-2 ${
                   selectedMethod === method.id ? 'bg-primary-100' : 'bg-gray-100'
                 }`}>
                   {getMethodIcon(method.payment_type)}
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">{method.name}</h4>
-                  <p className="text-sm text-gray-600">{getMethodDescription(method.payment_type)}</p>
+                  <h4 className="font-medium text-gray-900 text-sm">{method.name}</h4>
+                  <p className="text-xs text-gray-600">{getMethodDescription(method.payment_type)}</p>
                   {method.processing_fee_percentage > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 mt-0.5">
                       Fee: {method.processing_fee_percentage}% + LKR {method.processing_fee_fixed}
                     </p>
                   )}
                 </div>
-                <div className="ml-4">
-                  <div className={`w-4 h-4 rounded-full border-2 ${
+                <div className="ml-2">
+                  <div className={`w-3 h-3 rounded-full border-2 ${
                     selectedMethod === method.id
                       ? 'border-primary-500 bg-primary-500'
                       : 'border-gray-300'
                   }`}>
                     {selectedMethod === method.id && (
-                      <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>
+                      <div className="w-1 h-1 bg-white rounded-full m-0.5"></div>
                     )}
                   </div>
                 </div>

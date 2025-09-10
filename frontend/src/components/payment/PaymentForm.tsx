@@ -87,60 +87,60 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     // This would be dynamic based on the selected payment method
     // For now, showing a generic form
     return (
-      <div className="space-y-4">
-        <h4 className="font-medium text-gray-900">Payment Details</h4>
+      <div className="space-y-3">
+        <h4 className="font-medium text-gray-900 text-sm">Payment Details</h4>
         
         {/* Generic payment form - in real implementation, this would be specific to each payment method */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-xs font-medium text-gray-700 mb-1">
             Account Number / Card Number
           </label>
           <input
             type="text"
             value={paymentDetails.accountNumber || ''}
             onChange={(e) => handlePaymentDetailsChange('accountNumber', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+            className="w-full px-2 sm:px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
             placeholder="Enter account or card number"
             required
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Expiry Date
             </label>
             <input
               type="text"
               value={paymentDetails.expiryDate || ''}
               onChange={(e) => handlePaymentDetailsChange('expiryDate', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-2 sm:px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
               placeholder="MM/YY"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               CVV
             </label>
             <input
               type="text"
               value={paymentDetails.cvv || ''}
               onChange={(e) => handlePaymentDetailsChange('cvv', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-2 sm:px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
               placeholder="123"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-xs font-medium text-gray-700 mb-1">
             Name on Card / Account
           </label>
           <input
             type="text"
             value={paymentDetails.nameOnCard || ''}
             onChange={(e) => handlePaymentDetailsChange('nameOnCard', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+            className="w-full px-2 sm:px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
             placeholder="Enter name as it appears on card"
             required
           />
@@ -150,62 +150,59 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   };
 
   return (
-    <div className="max-w-md mx-auto">
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Complete Payment</h2>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Amount to pay:</span>
-            <span className="text-2xl font-bold text-primary-600">
-              LKR {amount.toLocaleString()}
-            </span>
-          </div>
+    <div className="w-full">
+      <div className="mb-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-600">Amount to pay:</span>
+          <span className="text-base font-bold text-primary-600">
+            LKR {amount.toLocaleString()}
+          </span>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <PaymentMethodSelector
-            onMethodSelect={handleMethodSelect}
-            selectedMethod={selectedMethod}
-          />
-
-          {renderPaymentDetailsForm()}
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md flex items-center">
-              <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
-              {error}
-            </div>
-          )}
-
-          <div className="flex space-x-3">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-              disabled={isProcessing}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!selectedMethod || isProcessing}
-              className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-            >
-              {isProcessing ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <CheckCircleIcon className="h-4 w-4 mr-2" />
-                  Pay Now
-                </>
-              )}
-            </button>
-          </div>
-        </form>
       </div>
+
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <PaymentMethodSelector
+          onMethodSelect={handleMethodSelect}
+          selectedMethod={selectedMethod}
+        />
+
+        {renderPaymentDetailsForm()}
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md flex items-center text-sm">
+            <ExclamationTriangleIcon className="h-4 w-4 mr-2" />
+            {error}
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+            disabled={isProcessing}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={!selectedMethod || isProcessing}
+            className="flex-1 px-3 py-2 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+          >
+            {isProcessing ? (
+              <>
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
+                Processing...
+              </>
+            ) : (
+              <>
+                <CheckCircleIcon className="h-3 w-3 mr-2" />
+                Pay Now
+              </>
+            )}
+          </button>
+        </div>
+      </form>
     </div>
   );
 };

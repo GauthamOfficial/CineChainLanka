@@ -359,22 +359,22 @@ const CampaignDetail: React.FC = () => {
 
       {/* Contribution Modal */}
       {showContributionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Support This Campaign</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 w-80 max-w-[90vw]">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3">Support This Campaign</h3>
             
             {selectedReward !== null && currentCampaign.rewards?.[selectedReward] && (
-              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium text-gray-900">{currentCampaign.rewards[selectedReward].title}</h4>
-                <p className="text-sm text-gray-600">{currentCampaign.rewards[selectedReward].description}</p>
-                <p className="text-lg font-bold text-primary-600 mt-2">
+              <div className="mb-3 p-3 bg-gray-50 rounded-md">
+                <h4 className="font-medium text-gray-900 text-sm">{currentCampaign.rewards[selectedReward].title}</h4>
+                <p className="text-xs text-gray-600 mt-1">{currentCampaign.rewards[selectedReward].description}</p>
+                <p className="text-base font-bold text-primary-600 mt-1">
                   {formatCurrency(currentCampaign.rewards[selectedReward].amount)}
                 </p>
               </div>
             )}
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Contribution Amount (LKR)
               </label>
               <input
@@ -382,21 +382,21 @@ const CampaignDetail: React.FC = () => {
                 value={contributionAmount}
                 onChange={(e) => setContributionAmount(e.target.value)}
                 min={selectedReward !== null ? currentCampaign.rewards?.[selectedReward]?.amount : 1}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                 placeholder="Enter amount"
               />
             </div>
 
-            <div className="flex space-x-3">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
               <button
                 onClick={() => setShowContributionModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleContributionSubmit}
-                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                className="flex-1 px-3 py-2 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700"
               >
                 Continue to Payment
               </button>
@@ -408,15 +408,15 @@ const CampaignDetail: React.FC = () => {
       {/* Payment Form Modal */}
       {showPaymentForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Complete Payment</h3>
+          <div className="bg-white rounded-lg w-96 max-w-[90vw] max-h-[85vh] overflow-y-auto">
+            <div className="p-3 sm:p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Complete Payment</h3>
                 <button
                   onClick={handlePaymentCancel}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
