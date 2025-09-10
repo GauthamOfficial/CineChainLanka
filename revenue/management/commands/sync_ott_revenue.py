@@ -161,3 +161,4 @@ class Command(BaseCommand):
                 self.style.ERROR(f'Error creating test data: {e}')
             )
             logger.error(f'Error creating test data: {e}')
+

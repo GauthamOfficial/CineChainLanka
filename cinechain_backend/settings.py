@@ -53,6 +53,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "django_filters",
+    "django_extensions",
+    # "django_ratelimit",  # Temporarily disabled due to cache backend incompatibility
     
     # Local apps
     "funding",
@@ -68,6 +70,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -75,6 +78,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "cinechain_backend.performance_monitor.PerformanceMonitoringMiddleware",
 ]
 
 ROOT_URLCONF = "cinechain_backend.urls"
@@ -251,31 +255,23 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
 # Cache configuration
+# Use local memory cache instead of Redis for development
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': REDIS_URL,
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        },
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
         'KEY_PREFIX': 'cinechain',
         'TIMEOUT': 300,  # 5 minutes default timeout
     },
     'sessions': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': REDIS_URL,
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        },
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake-sessions',
         'KEY_PREFIX': 'cinechain_sessions',
         'TIMEOUT': 86400,  # 24 hours for sessions
     },
     'api': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': REDIS_URL,
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        },
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake-api',
         'KEY_PREFIX': 'cinechain_api',
         'TIMEOUT': 600,  # 10 minutes for API responses
     },
@@ -428,6 +424,65 @@ MARKETPLACE_AUCTION_DURATION_HOURS = 72  # 72 hours
 # Analytics Settings
 ANALYTICS_CACHE_TTL = 300  # 5 minutes
 ANALYTICS_BATCH_SIZE = 100
+
+# Rate Limiting Configuration
+RATELIMIT_USE_CACHE = 'api'
+RATELIMIT_ENABLE = not DEBUG
+
+# Performance Optimization Settings
+DATABASE_CONNECTION_POOL_SIZE = 20
+DATABASE_CONNECTION_MAX_AGE = 0  # 0 means connections are closed after each request
+
+# Static files optimization
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = DEBUG
+
+# Database query optimization
+if DATABASES['default']['ENGINE'] == 'django.db.backends.mysql':
+    DATABASES['default']['OPTIONS'].update({
+        'charset': 'utf8mb4',
+        'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        'autocommit': True,
+        'isolation_level': None,
+    })
+
+# Connection pooling for production
+if not DEBUG and DATABASES['default']['ENGINE'] == 'django.db.backends.mysql':
+    DATABASES['default']['OPTIONS'].update({
+        'CONN_MAX_AGE': 60,  # 1 minute
+        'CONN_HEALTH_CHECKS': True,
+    })
+
+# API Performance Settings
+REST_FRAMEWORK.update({
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour',
+        'burst': '20/minute',
+    }
+})
+
+# Security Headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# Performance Monitoring
+PERFORMANCE_MONITORING = {
+    'ENABLED': True,
+    'SLOW_QUERY_THRESHOLD': 0.1,  # 100ms
+    'SLOW_REQUEST_THRESHOLD': 1.0,  # 1 second
+    'LOG_SLOW_QUERIES': True,
+    'LOG_SLOW_REQUESTS': True,
+}
 
 # Logging Configuration
 LOGGING = {

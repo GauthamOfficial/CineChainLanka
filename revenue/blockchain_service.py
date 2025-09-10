@@ -344,3 +344,4 @@ class RoyaltyDistributionService:
         except Exception as e:
             logger.error(f"Error claiming investor royalties: {e}")
             return False
+

@@ -24,10 +24,14 @@ const Navbar: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
+  // Debug log to check authentication state
+  console.log('Navbar - isAuthenticated:', isAuthenticated, 'user:', user);
+
   const handleLogout = async () => {
     await dispatch(logout());
     navigate('/');
   };
+
 
   const navigation = [
     { name: 'Home', href: '/', icon: HomeIcon },
@@ -50,106 +54,110 @@ const Navbar: React.FC = () => {
   ];
 
   return (
-    <nav className="bg-white shadow-lg">
+    <nav className="bg-white shadow-lg border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
           <div className="flex items-center">
-            <Link to="/" className="flex-shrink-0 flex items-center">
+            <Link to="/" className="flex items-center space-x-2">
               <FilmIcon className="h-8 w-8 text-primary-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">CineChainLanka</span>
+              <span className="text-xl font-bold text-gray-900">CineChainLanka</span>
             </Link>
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden lg:flex items-center space-x-4">
+            {/* Main Navigation */}
             {navigation.map((item) => (
               <Link
                 key={item.name}
                 to={item.href}
-                className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium flex items-center"
+                className="text-gray-700 hover:text-primary-600 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
               >
-                <item.icon className="h-5 w-5 mr-1" />
+                <item.icon className="h-4 w-4 mr-2" />
                 {item.name}
               </Link>
             ))}
 
-            {isAuthenticated && authenticatedNavigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium flex items-center"
-              >
-                <item.icon className="h-5 w-5 mr-1" />
-                {item.name}
-              </Link>
-            ))}
+            {/* User Navigation - Only show when authenticated */}
+            {isAuthenticated && (
+              <>
+                {authenticatedNavigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className="text-gray-700 hover:text-primary-600 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
+                  >
+                    <item.icon className="h-4 w-4 mr-2" />
+                    {item.name}
+                  </Link>
+                ))}
 
-            {isAuthenticated && analyticsNavigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium flex items-center"
-              >
-                <item.icon className="h-5 w-5 mr-1" />
-                {item.name}
-              </Link>
-            ))}
+                {analyticsNavigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className="text-gray-700 hover:text-primary-600 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
+                  >
+                    <item.icon className="h-4 w-4 mr-2" />
+                    {item.name}
+                  </Link>
+                ))}
 
-            {isAuthenticated && user?.user_type === 'admin' && adminNavigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium flex items-center"
-              >
-                <item.icon className="h-5 w-5 mr-1" />
-                {item.name}
-              </Link>
-            ))}
-          </div>
-
-          {/* Language Switcher - Always visible */}
-          <div className="hidden md:flex items-center">
-            <LanguageSwitcher />
-          </div>
-
-          {/* Auth Buttons */}
-          <div className="hidden md:flex items-center space-x-4">
-            <WalletConnection />
-            {isAuthenticated ? (
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-700">
-                  Welcome, {user?.first_name || user?.username}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-                >
-                  Logout
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-4">
-                <Link
-                  to="/login"
-                  className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium"
-                >
-                  Login
-                </Link>
-                <Link
-                  to="/register"
-                  className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-                >
-                  Register
-                </Link>
-              </div>
+                {user?.user_type === 'admin' && adminNavigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className="text-gray-700 hover:text-primary-600 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
+                  >
+                    <item.icon className="h-4 w-4 mr-2" />
+                    {item.name}
+                  </Link>
+                ))}
+              </>
             )}
+
+            {/* Right Side Actions */}
+            <div className="flex items-center space-x-2 pl-4 border-l border-gray-200">
+              <LanguageSwitcher />
+              <WalletConnection />
+              
+              {isAuthenticated ? (
+                <>
+                  <span className="text-sm text-gray-600">
+                    Welcome, {user?.first_name || user?.username}
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    className="bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Register
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          <div className="lg:hidden flex items-center">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-primary-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
+              className="inline-flex items-center justify-center p-2 rounded-lg text-gray-700 hover:text-primary-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 transition-colors"
             >
               {isOpen ? (
                 <XMarkIcon className="block h-6 w-6" />
@@ -163,85 +171,129 @@ const Navbar: React.FC = () => {
 
       {/* Mobile Navigation */}
       {isOpen && (
-        <div className="md:hidden">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className="text-gray-700 hover:text-primary-600 block px-3 py-2 rounded-md text-base font-medium flex items-center"
-                onClick={() => setIsOpen(false)}
-              >
-                <item.icon className="h-5 w-5 mr-2" />
-                {item.name}
-              </Link>
-            ))}
+        <div className="lg:hidden">
+          <div className="px-4 py-4 space-y-2 bg-white border-t border-gray-200">
+            {/* Main Navigation */}
+            <div className="space-y-1">
+              <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Main Navigation
+              </div>
+              {navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className="text-gray-700 hover:text-primary-600 hover:bg-gray-50 block px-3 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <item.icon className="h-4 w-4 mr-3" />
+                  {item.name}
+                </Link>
+              ))}
+            </div>
 
-            {isAuthenticated && authenticatedNavigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className="text-gray-700 hover:text-primary-600 block px-3 py-2 rounded-md text-base font-medium flex items-center"
-                onClick={() => setIsOpen(false)}
-              >
-                <item.icon className="h-5 w-5 mr-2" />
-                {item.name}
-              </Link>
-            ))}
+            {/* User Navigation */}
+            {isAuthenticated && (
+              <div className="space-y-1">
+                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Account
+                </div>
+                {authenticatedNavigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className="text-gray-700 hover:text-primary-600 hover:bg-gray-50 block px-3 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <item.icon className="h-4 w-4 mr-3" />
+                    {item.name}
+                  </Link>
+                ))}
 
-            {isAuthenticated && analyticsNavigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className="text-gray-700 hover:text-primary-600 block px-3 py-2 rounded-md text-base font-medium flex items-center"
-                onClick={() => setIsOpen(false)}
-              >
-                <item.icon className="h-5 w-5 mr-2" />
-                {item.name}
-              </Link>
-            ))}
+                {analyticsNavigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className="text-gray-700 hover:text-primary-600 hover:bg-gray-50 block px-3 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <item.icon className="h-4 w-4 mr-3" />
+                    {item.name}
+                  </Link>
+                ))}
+
+                {user?.user_type === 'admin' && adminNavigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className="text-gray-700 hover:text-primary-600 hover:bg-gray-50 block px-3 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <item.icon className="h-4 w-4 mr-3" />
+                    {item.name}
+                  </Link>
+                ))}
+              </div>
+            )}
 
             {/* Language Switcher for Mobile */}
-            <div className="pt-4 pb-3 border-t border-gray-200">
-              <div className="px-3 py-2 text-sm text-gray-700 mb-2">Language / භාෂාව / மொழி</div>
+            <div className="space-y-1">
+              <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Language / භාෂාව / மொழி
+              </div>
               <div className="px-3">
                 <LanguageSwitcher onLanguageChange={() => setIsOpen(false)} />
               </div>
             </div>
 
-            {isAuthenticated ? (
-              <div className="pt-4 pb-3 border-t border-gray-200">
-                <div className="px-3 py-2 text-sm text-gray-700">
-                  Welcome, {user?.first_name || user?.username}
+            {/* Wallet Connection for Mobile */}
+            <div className="space-y-1">
+              <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Wallet
+              </div>
+              <div className="px-3">
+                <WalletConnection />
+              </div>
+            </div>
+
+            {/* User Actions */}
+            <div className="space-y-1">
+              <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Account Actions
+              </div>
+              {isAuthenticated ? (
+                <>
+                  <div className="px-3 py-2 text-sm text-gray-600">
+                    Welcome, {user?.first_name || user?.username}
+                  </div>
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setIsOpen(false);
+                    }}
+                    className="w-full text-left text-gray-700 hover:text-red-600 hover:bg-red-50 block px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <div className="px-3 space-y-2">
+                  <Link
+                    to="/login"
+                    className="text-gray-700 hover:text-primary-600 hover:bg-gray-50 block px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="bg-primary-600 hover:bg-primary-700 text-white block px-3 py-2 rounded-lg text-sm font-medium text-center transition-colors"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Register
+                  </Link>
                 </div>
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setIsOpen(false);
-                  }}
-                  className="w-full text-left text-gray-700 hover:text-red-600 block px-3 py-2 rounded-md text-base font-medium"
-                >
-                  Logout
-                </button>
-              </div>
-            ) : (
-              <div className="pt-4 pb-3 border-t border-gray-200 space-y-2">
-                <Link
-                  to="/login"
-                  className="text-gray-700 hover:text-primary-600 block px-3 py-2 rounded-md text-base font-medium"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Login
-                </Link>
-                <Link
-                  to="/register"
-                  className="bg-primary-600 hover:bg-primary-700 text-white block px-3 py-2 rounded-md text-base font-medium text-center"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Register
-                </Link>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -134,18 +134,19 @@ const WalletConnection: React.FC<WalletConnectionProps> = ({
 
   if (isConnected && account) {
     return (
-      <div className={`flex items-center space-x-3 ${className}`}>
+      <div className={`flex items-center space-x-2 ${className}`}>
         {/* Network Indicator */}
         <div className="relative">
           <button
             onClick={() => setShowNetworkMenu(!showNetworkMenu)}
-            className={`px-3 py-1 rounded-full text-xs font-medium ${getNetworkColor(chainId)}`}
+            className={`px-2 py-1 rounded-full text-xs font-medium ${getNetworkColor(chainId)}`}
           >
-            {getNetworkName(chainId)}
+            <span className="hidden xl:inline">{getNetworkName(chainId)}</span>
+            <span className="xl:hidden">{getNetworkName(chainId).split(' ')[0]}</span>
           </button>
           
           {showNetworkMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border">
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-10 border">
               <div className="py-1">
                 <button
                   onClick={() => handleSwitchNetwork(1)}
@@ -171,8 +172,8 @@ const WalletConnection: React.FC<WalletConnectionProps> = ({
         </div>
 
         {/* Account Info */}
-        <div className="flex items-center space-x-2">
-          <CheckCircleIcon className="h-5 w-5 text-green-500" />
+        <div className="flex items-center space-x-1">
+          <CheckCircleIcon className="h-4 w-4 text-green-500" />
           <span className="text-sm font-medium text-gray-900">
             {formatAddress(account)}
           </span>
@@ -181,7 +182,7 @@ const WalletConnection: React.FC<WalletConnectionProps> = ({
         {/* Disconnect Button */}
         <button
           onClick={handleDisconnect}
-          className="text-sm text-gray-500 hover:text-gray-700 underline"
+          className="text-sm text-gray-500 hover:text-gray-700 underline hidden xl:inline"
         >
           Disconnect
         </button>
@@ -192,10 +193,11 @@ const WalletConnection: React.FC<WalletConnectionProps> = ({
   return (
     <button
       onClick={handleConnect}
-      className={`flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${className}`}
+      className={`flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium ${className}`}
     >
-      <WalletIcon className="h-5 w-5" />
-      <span>Connect Wallet</span>
+      <WalletIcon className="h-4 w-4" />
+      <span className="hidden xl:inline">Connect Wallet</span>
+      <span className="xl:hidden">Connect</span>
     </button>
   );
 };

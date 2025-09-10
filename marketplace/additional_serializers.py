@@ -127,3 +127,4 @@ class NFTBidCreateSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("Bid amount must be greater than zero")
         return value
+

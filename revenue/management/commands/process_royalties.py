@@ -236,3 +236,4 @@ class Command(BaseCommand):
                 self.style.ERROR(f'Error updating analytics: {e}')
             )
             logger.error(f'Error updating analytics: {e}')
+

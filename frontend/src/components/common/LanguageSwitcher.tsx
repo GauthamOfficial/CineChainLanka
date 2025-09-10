@@ -28,12 +28,12 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ onLanguageChange })
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+        className="flex items-center space-x-1 px-2 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
       >
         <GlobeAltIcon className="h-4 w-4" />
-        <span className="hidden sm:inline">{currentLanguage.flag}</span>
-        <span className="hidden sm:inline">{currentLanguage.name}</span>
-        <ChevronDownIcon className="h-4 w-4" />
+        <span className="hidden xl:inline">{currentLanguage.flag}</span>
+        <span className="hidden xl:inline">{currentLanguage.name}</span>
+        <ChevronDownIcon className="h-3 w-3" />
       </button>
 
       {isOpen && (
