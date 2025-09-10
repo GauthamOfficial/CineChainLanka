@@ -15,6 +15,43 @@ import {
   CameraIcon
 } from '@heroicons/react/24/outline';
 
+// UserProfile type definition
+interface UserProfile {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  user_type: 'creator' | 'investor' | 'admin';
+  phone_number: string;
+  bio: string;
+  profile_picture: string;
+  date_of_birth: string;
+  address_line1: string;
+  address_line2: string;
+  city: string;
+  state_province: string;
+  postal_code: string;
+  country: string;
+  kyc_status: 'pending' | 'submitted' | 'verified' | 'rejected';
+  creator_verified: boolean;
+  investment_limit: number;
+  created_at: string;
+  updated_at: string;
+  profile_id?: number;
+  website?: string;
+  facebook?: string;
+  twitter?: string;
+  instagram?: string;
+  linkedin?: string;
+  occupation?: string;
+  company?: string;
+  experience_years?: number;
+  portfolio_description?: string;
+  awards?: string;
+  annual_income_range?: string;
+}
+
 const Profile: React.FC = () => {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
@@ -209,6 +246,11 @@ const Profile: React.FC = () => {
   }
 
   const currentUser = profile || user;
+  
+  // Type guard to check if currentUser has UserProfile properties
+  const hasProfileData = (user: any): user is UserProfile => {
+    return user && 'profile_picture' in user && 'kyc_status' in user;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -230,10 +272,10 @@ const Profile: React.FC = () => {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="text-center">
                 <div className="relative inline-block">
-                  {previewImage || currentUser?.profile_picture ? (
+                  {previewImage || (hasProfileData(currentUser) ? currentUser.profile_picture : null) ? (
                     <img
                       className="w-32 h-32 rounded-full object-cover"
-                      src={previewImage || currentUser?.profile_picture}
+                      src={previewImage || (hasProfileData(currentUser) ? currentUser.profile_picture : '')}
                       alt="Profile"
                     />
                   ) : (
@@ -257,7 +299,7 @@ const Profile: React.FC = () => {
                 <p className="text-gray-600">@{currentUser?.username}</p>
                 <div className="mt-4 space-y-2">
                   {getUserTypeBadge(currentUser?.user_type || '')}
-                  {getKYCStatusBadge(currentUser?.kyc_status || '')}
+                  {getKYCStatusBadge(hasProfileData(currentUser) ? currentUser.kyc_status : '')}
                 </div>
               </div>
             </div>
