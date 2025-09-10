@@ -159,28 +159,6 @@ const Login: React.FC = () => {
             </div>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Demo Credentials</span>
-              </div>
-            </div>
-
-            <div className="mt-4 bg-gray-50 p-4 rounded-md">
-              <p className="text-sm text-gray-600 mb-2">
-                <strong>Username:</strong> admin_user
-              </p>
-              <p className="text-sm text-gray-600 mb-2">
-                <strong>Password:</strong> testpass123
-              </p>
-              <p className="text-xs text-gray-500">
-                These are sample credentials for testing purposes.
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
